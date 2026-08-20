@@ -33,3 +33,22 @@ source .venv/bin/activate
 pip install -e '.[dev]'
 pytest
 ```
+
+## Checks
+
+Continuous integration runs the same three checks on every pull request, across
+Python 3.11, 3.12, and 3.13:
+
+```bash
+ruff check .          # lint
+ruff format --check . # formatting
+mypy                  # strict type checking
+pytest --cov          # tests and coverage
+```
+
+Installing the pre-commit hooks runs the lint and format steps before each
+commit, so the same failures surface locally rather than in CI:
+
+```bash
+pre-commit install
+```
