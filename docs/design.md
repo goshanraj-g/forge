@@ -236,7 +236,7 @@ manufacturing execution system.
 
 ## Open decisions
 
-These choices should be made with measurements during implementation:
+Things to consider during the implementation:
 
 - simulation tick size;
 - optimizer bucket size and time limit;
@@ -245,5 +245,5 @@ These choices should be made with measurements during implementation:
 - whether retrieval of past decisions improves evaluation results;
 - when active simulation state should move from memory to Postgres.
 
-They are open on purpose. Tests and evaluation results should settle them rather
-than the design document guessing in advance.
+They are open on purpose; when we test and evaluate results, that info should
+settle them
