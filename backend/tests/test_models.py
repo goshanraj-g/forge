@@ -141,6 +141,19 @@ def test_production_job_uses_half_open_interval() -> None:
     assert job.is_active_at(4.99)
     assert not job.is_active_at(5)
 
+@pytest.mark.parametrize("end_hour", [2, 1])
+def test_production_job_requires_positive_duration(end_hour: float) -> None:
+    with pytest.raises(ValidationError, match="end_hour must be greater"):
+        ProductionJob(
+            id="J1",
+            order_id="O1",
+            machine_id="M1",
+            product_id="P1",
+            start_hour=2,
+            end_hour=end_hour,
+            quantity=60,
+        )
+
 
 def test_production_job_rejects_negative_quantity() -> None:
     with pytest.raises(ValidationError):

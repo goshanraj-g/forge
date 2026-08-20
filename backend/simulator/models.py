@@ -3,7 +3,13 @@
 from __future__ import annotations
 from enum import StrEnum
 
-from pydantic import BaseModel, Field, NonNegativeFloat, NonNegativeInt
+from pydantic import (
+    BaseModel,
+    Field,
+    NonNegativeFloat,
+    NonNegativeInt,
+    model_validator,
+)
 
 PRECISION = 6
 
@@ -108,6 +114,12 @@ class ProductionJob(BaseModel):
     quantity: NonNegativeInt
     schedule_version: int = 0
     produced: NonNegativeFloat = 0.0
+
+    @model_validator(mode="after")
+    def validate_duration(self) -> "ProductionJob":
+        if self.end_hour <= self.start_hour:
+            raise ValueError("end_hour must be greater than start_hour")
+        return self
 
     def is_active_at(self, hour: float) -> bool:
         return self.start_hour <= hour < self.end_hour
