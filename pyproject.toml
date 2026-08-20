@@ -8,7 +8,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0"]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "ruff>=0.6",
+    "mypy>=1.11",
+]
 
 [build-system]
 requires = ["hatchling"]
@@ -19,3 +24,43 @@ packages = ["backend"]
 
 [tool.pytest.ini_options]
 testpaths = ["backend/tests"]
+addopts = "--strict-markers --strict-config"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 88
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # import sorting
+    "UP",   # pyupgrade
+    "B",    # bugbear
+    "SIM",  # simplifications
+    "RUF",  # ruff-specific rules
+]
+
+[tool.mypy]
+python_version = "3.11"
+files = ["backend"]
+plugins = ["pydantic.mypy"]
+strict = true
+warn_unreachable = true
+
+[[tool.mypy.overrides]]
+module = "backend.tests.*"
+disallow_untyped_defs = false
+
+[tool.coverage.run]
+source = ["backend"]
+omit = ["backend/tests/*"]
+
+[tool.coverage.report]
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+]
