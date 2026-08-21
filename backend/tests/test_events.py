@@ -2,9 +2,9 @@ import pytest
 from pydantic import TypeAdapter, ValidationError
 
 from backend.simulator.events import (
-    FactoryEvent,
     INJECTABLE_EVENT_TYPES,
     EventType,
+    FactoryEvent,
     MachineFailureEvent,
     MachineRepairEvent,
     OrderCompleteEvent,
@@ -37,7 +37,7 @@ def test_failure_requires_positive_duration(duration: float) -> None:
 
 
 def test_factory_event_uses_type_discriminator() -> None:
-    event = TypeAdapter(FactoryEvent).validate_python(
+    event: FactoryEvent = TypeAdapter(FactoryEvent).validate_python(
         {
             "type": "urgent_order",
             "id": "E2",

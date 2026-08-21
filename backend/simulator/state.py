@@ -17,6 +17,7 @@ from backend.simulator.models import (
     Supplier,
 )
 
+
 class FactoryState(BaseModel):
     name: str = "factory_01"
     sim_hour: float = 0.0
@@ -34,13 +35,13 @@ class FactoryState(BaseModel):
     changeover_hours: float = 0.0
     production_cost: float = 0.0
     late_penalty_cost: float = 0.0
-    
+
     def machine_list(self) -> list[Machine]:
         return [self.machines[key] for key in sorted(self.machines)]
-    
+
     def product_list(self) -> list[Product]:
         return [self.products[key] for key in sorted(self.products)]
-    
+
     def order_list(self) -> list[Order]:
         return [self.orders[key] for key in sorted(self.orders)]
 
@@ -55,23 +56,23 @@ class FactoryState(BaseModel):
 
     def job_list(self) -> list[ProductionJob]:
         return [self.jobs[key] for key in sorted(self.jobs)]
-    
+
     def open_orders(self) -> list[Order]:
         return [order for order in self.order_list() if order.is_open()]
-    
+
     def jobs_for_machine(self, machine_id: str) -> list[ProductionJob]:
         return [
             job
             for job in self.job_list()
             if job.machine_id == machine_id
         ]
-        
+
     def total_cost(self) -> float:
         return round(
             self.production_cost + self.late_penalty_cost,
             6,
         )
-        
+
     def canonical(self) -> str:
         """Return a stable JSON representation of the complete state"""
         return json.dumps(
@@ -80,11 +81,11 @@ class FactoryState(BaseModel):
             separators=(",", ":"),
             default=str,
         )
-        
+
     def snapshot_hash(self) -> str:
         """Return a content hash used to compare simulation runs"""
         return hashlib.sha256(self.canonical().encode()).hexdigest()
-    
-    def clone(self) -> "FactoryState":
+
+    def clone(self) -> FactoryState:
         """Returns a deep copy that shares no mutable entity state"""
         return self.model_copy(deep=True)

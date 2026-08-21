@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Annotated, Literal, Union
+from typing import Annotated, Literal
 
 from pydantic import (
     BaseModel,
@@ -12,6 +12,7 @@ from pydantic import (
     PositiveFloat,
     PositiveInt,
 )
+
 
 class EventType(StrEnum):
     MACHINE_FAILURE = "machine_failure"
@@ -22,11 +23,13 @@ class EventType(StrEnum):
     SHIPMENT_RECEIVED = "shipment_received"
     ORDER_COMPLETE = "order_complete"
     ORDER_LATE = "order_late"
-    
+
 class BaseEvent(BaseModel):
     id: str = ""
     sim_hour: NonNegativeFloat
+    type: EventType
     triggered_agent_run_id: str | None = None
+
     @property
     def sort_key(self) -> tuple[float, str, str]:
         return (self.sim_hour, str(self.type), self.id)
@@ -86,16 +89,16 @@ class OrderLateEvent(BaseEvent):
 
 
 FactoryEvent = Annotated[
-    Union[
-        MachineFailureEvent,
-        MachineRepairEvent,
-        SupplierDelayEvent,
-        UrgentOrderEvent,
-        LowInventoryEvent,
-        ShipmentReceivedEvent,
-        OrderCompleteEvent,
-        OrderLateEvent,
-    ],
+    (
+        MachineFailureEvent
+        | MachineRepairEvent
+        | SupplierDelayEvent
+        | UrgentOrderEvent
+        | LowInventoryEvent
+        | ShipmentReceivedEvent
+        | OrderCompleteEvent
+        | OrderLateEvent
+    ),
     Field(discriminator="type"),
 ]
 
@@ -109,5 +112,5 @@ INJECTABLE_EVENT_TYPES = (
 
 
 def sort_events(events: list[BaseEvent]) -> list[BaseEvent]:
-    """Sort events by simulation hour, type, and ID"""
+    """Sort events by simulation hour, type, and ID."""
     return sorted(events, key=lambda event: event.sort_key)

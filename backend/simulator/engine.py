@@ -27,22 +27,22 @@ CHANGEOVER_COST_PER_HOUR = 80.0
 @dataclass
 class SimulationContext:
     """ Values and utilities owned by one simulation run """
-    
+
     seed: int = 0
     step_hours: float = DEFAULT_STEP_HOURS
     rng: random.Random = field(init=False)
     _counter: int = field(default=0, init=False)
-    
+
     def __post_init__(self) -> None:
         if self.step_hours <= 0:
             raise ValueError("step_hours must be positive")
-        
+
         self.rng = random.Random(self.seed)
-    
+
     def next_id(self, prefix: str) -> str:
         self._counter += 1
         return f"{prefix}-{self._counter:05d}"
-    
+
 def overtime_overlap(
     start: float,
     end: float,
@@ -50,21 +50,21 @@ def overtime_overlap(
     day_hours: float = HOURS_PER_DAY,
 ) -> float:
     """Return the part of an interval that falls outside nominal shifts"""
-    
+
     if end <= start:
         return 0.0
-    
+
     total = 0.0
     first_day = int(start // day_hours)
     last_day = int((end - 1e-9) // day_hours)
-    
+
     for day in range(first_day, last_day + 1):
         overtime_start = day * day_hours + shift_hours
         overtime_end = (day + 1) * day_hours
-        
+
         overlap_start = max(start, overtime_start)
         overlap_end = min(end, overtime_end)
-        
+
         if overlap_end > overlap_start:
             total += overlap_end - overlap_start
     return q(total)
@@ -82,22 +82,22 @@ class FactorySimulator:
         self.pending = ev.sort_events(list(pending_events or []))
         self.log: list[ev.BaseEvent] = []
         self._low_inventory_components: set[str] = set()
-        
+
     def schedule(self, event: ev.BaseEvent) -> None:
         """ Schedule an event for a future simulation time """
         if not event.id:
             event.id = self.context.next_id("evt")
-            
+
         self.pending = ev.sort_events([*self.pending, event])
-        
+
     def _emit(self, event: ev.BaseEvent) -> None:
         """ Add an event to the audit log"""
         if not event.id:
             event.id = self.context.next_id("evt")
-        
+
         self.log.append(event)
-    
-    
+
+
     def _due_events(self, upto_hour: float) -> list[ev.BaseEvent]:
         """Remove and return events due by the supplied hour"""
         due = [
@@ -105,7 +105,7 @@ class FactorySimulator:
             for event in self.pending
             if event.sim_hour <= upto_hour
         ]
-        
+
         if due:
             due_ids = {event.id for event in due}
             self.pending = [
@@ -114,7 +114,7 @@ class FactorySimulator:
                 if event.id not in due_ids
             ]
         return ev.sort_events(due)
-    
+
     def apply_event(self, event: ev.BaseEvent) -> None:
         """Apply one external event and record it in the audit log."""
         if isinstance(event, ev.MachineFailureEvent):
@@ -153,19 +153,19 @@ class FactorySimulator:
 
         machine.status = MachineStatus.IDLE
         machine.down_until_hour = None
-        
+
     def _on_supplier_delay(
         self,
         event: ev.SupplierDelayEvent,
     ) -> None:
         shipment = self.state.shipments.get(event.shipment_id)
-        
+
         if shipment is None:
             return
-        
+
         if shipment.status == ShipmentStatus.RECEIVED:
             return
-        
+
         shipment.eta_hour = q(
             shipment.eta_hour + event.delay_hours,
         )
@@ -421,7 +421,7 @@ class FactorySimulator:
 
         log_start = len(self.log)
         remaining = hour - self.state.sim_hour
-        steps = int(round(remaining / actual_step))
+        steps = round(remaining / actual_step)
         for _ in range(steps):
             self.tick(actual_step)
         return self.log[log_start:]
