@@ -1,6 +1,7 @@
 """Core factory domain models"""
 
 from __future__ import annotations
+
 from enum import StrEnum
 
 from pydantic import (
@@ -13,8 +14,10 @@ from pydantic import (
 
 PRECISION = 6
 
+
 def q(value: float) -> float:
     return round(value, PRECISION)
+
 
 class MachineStatus(StrEnum):
     RUNNING = "running"
@@ -22,17 +25,20 @@ class MachineStatus(StrEnum):
     DOWN = "down"
     MAINTENANCE = "maintenance"
 
+
 class OrderStatus(StrEnum):
     PENDING = "pending"
     IN_PROGRESS = "in_progress"
     COMPLETE = "complete"
     LATE = "late"
 
+
 class ShipmentStatus(StrEnum):
     IN_TRANSIT = "in_transit"
     DELAYED = "delayed"
     RECEIVED = "received"
-    
+
+
 class Machine(BaseModel):
     id: str
     name: str
@@ -52,12 +58,14 @@ class Machine(BaseModel):
             MachineStatus.IDLE,
         )
 
+
 class Product(BaseModel):
     id: str
     name: str
     family: str
     bom: dict[str, float] = Field(default_factory=dict)
     unit_cost: NonNegativeFloat = 0.0
+
 
 class Order(BaseModel):
     id: str
@@ -80,6 +88,7 @@ class Order(BaseModel):
             OrderStatus.IN_PROGRESS,
         )
 
+
 class InventoryItem(BaseModel):
     component_id: str
     on_hand: NonNegativeFloat = 0.0
@@ -90,11 +99,13 @@ class InventoryItem(BaseModel):
     def available(self) -> float:
         return q(max(0.0, self.on_hand - self.reserved))
 
+
 class Supplier(BaseModel):
     id: str
     component_id: str
     lead_time_hours: NonNegativeFloat
     reliability: float = 1.0
+
 
 class Shipment(BaseModel):
     id: str
@@ -103,6 +114,7 @@ class Shipment(BaseModel):
     quantity: NonNegativeFloat
     eta_hour: float
     status: ShipmentStatus = ShipmentStatus.IN_TRANSIT
+
 
 class ProductionJob(BaseModel):
     id: str
@@ -116,7 +128,7 @@ class ProductionJob(BaseModel):
     produced: NonNegativeFloat = 0.0
 
     @model_validator(mode="after")
-    def validate_duration(self) -> "ProductionJob":
+    def validate_duration(self) -> ProductionJob:
         if self.end_hour <= self.start_hour:
             raise ValueError("end_hour must be greater than start_hour")
         return self

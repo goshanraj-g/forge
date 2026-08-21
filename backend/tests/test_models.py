@@ -15,8 +15,10 @@ from backend.simulator.models import (
     q,
 )
 
+
 def test_q_rounds_to_storage_precision() -> None:
     assert q(1.12345678) == 1.123457
+
 
 def test_machine_defaults_to_available_and_idle() -> None:
     machine = Machine(
@@ -31,6 +33,7 @@ def test_machine_defaults_to_available_and_idle() -> None:
     assert machine.can_produce("P1")
     assert not machine.can_produce("P3")
 
+
 def test_down_machine_is_not_available() -> None:
     machine = Machine(
         id="M1",
@@ -43,6 +46,7 @@ def test_down_machine_is_not_available() -> None:
 
     assert not machine.is_available()
 
+
 def test_machine_rejects_negative_capacity() -> None:
     with pytest.raises(ValidationError):
         Machine(
@@ -52,6 +56,7 @@ def test_machine_rejects_negative_capacity() -> None:
             supported_products=["P1"],
         )
 
+
 def test_products_do_not_share_bom_dictionaries() -> None:
     first = Product(id="P1", name="Motor", family="drive")
     second = Product(id="P2", name="Battery", family="energy")
@@ -59,6 +64,7 @@ def test_products_do_not_share_bom_dictionaries() -> None:
     first.bom["steel"] = 2.0
 
     assert second.bom == {}
+
 
 def test_order_calculates_remaining_quantity() -> None:
     order = Order(
@@ -71,6 +77,7 @@ def test_order_calculates_remaining_quantity() -> None:
 
     assert order.remaining == 64.5
     assert order.is_open()
+
 
 def test_completed_order_is_not_open() -> None:
     order = Order(
@@ -86,6 +93,7 @@ def test_completed_order_is_not_open() -> None:
     assert order.remaining == 0
     assert not order.is_open()
 
+
 def test_inventory_calculates_available_quantity() -> None:
     inventory = InventoryItem(
         component_id="steel",
@@ -96,6 +104,7 @@ def test_inventory_calculates_available_quantity() -> None:
 
     assert inventory.available == 64.5
 
+
 def test_available_inventory_never_becomes_negative() -> None:
     inventory = InventoryItem(
         component_id="steel",
@@ -104,6 +113,7 @@ def test_available_inventory_never_becomes_negative() -> None:
     )
 
     assert inventory.available == 0
+
 
 def test_supplier_rejects_negative_lead_time() -> None:
     with pytest.raises(ValidationError):
@@ -125,6 +135,7 @@ def test_shipment_defaults_to_in_transit() -> None:
 
     assert shipment.status == ShipmentStatus.IN_TRANSIT
 
+
 def test_production_job_uses_half_open_interval() -> None:
     job = ProductionJob(
         id="J1",
@@ -140,6 +151,7 @@ def test_production_job_uses_half_open_interval() -> None:
     assert job.is_active_at(2)
     assert job.is_active_at(4.99)
     assert not job.is_active_at(5)
+
 
 @pytest.mark.parametrize("end_hour", [2, 1])
 def test_production_job_requires_positive_duration(end_hour: float) -> None:
