@@ -34,7 +34,9 @@ class ViolationCode(StrEnum):
     MACHINE_DOWN = "machine_down"
     OVERLAPPING_JOBS = "overlapping_jobs"
     INSUFFICIENT_INVENTORY = "insufficient_inventory"
+    INSUFFICIENT_DURATION = "insufficient_duration"
     INVALID_QUANTITY = "invalid_quantity"
+    MISSED_HARD_DEADLINE = "missed_hard_deadline"
     PAST_START = "past_start"
 
 

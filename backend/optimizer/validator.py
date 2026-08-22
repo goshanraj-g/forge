@@ -21,6 +21,7 @@ from backend.simulator.state import FactoryState
 def validate_schedule(
     state: FactoryState,
     jobs: list[ProductionJob],
+    hard_deadline_orders: set[str] | None = None,
 ) -> ValidationResult:
     """Validate a candidate without modifying factory state."""
     violations: list[ScheduleViolation] = []
@@ -28,7 +29,14 @@ def validate_schedule(
     _check_duplicate_ids(jobs, violations)
     _check_job_references(state, jobs, violations)
     _check_machine_overlaps(jobs, violations)
+    _check_job_durations(state, jobs, violations)
     _check_order_quantities(state, jobs, violations)
+    _check_hard_deadlines(
+        state,
+        jobs,
+        hard_deadline_orders or set(),
+        violations,
+    )
     _check_inventory(state, jobs, violations)
 
     return ValidationResult(violations=violations)
@@ -227,6 +235,83 @@ def _check_order_quantities(
                         "units remain"
                     ),
                     job_ids=[job.id for job in jobs if job.order_id == order_id],
+                    order_ids=[order_id],
+                ),
+            )
+
+
+def _check_job_durations(
+    state: FactoryState,
+    jobs: list[ProductionJob],
+    violations: list[ScheduleViolation],
+) -> None:
+    by_machine: dict[str, list[ProductionJob]] = defaultdict(list)
+    for job in jobs:
+        by_machine[job.machine_id].append(job)
+
+    for machine_id in sorted(by_machine):
+        machine = state.machines.get(machine_id)
+        if machine is None:
+            continue
+
+        family = machine.current_family
+        for job in sorted(
+            by_machine[machine_id],
+            key=lambda item: (item.start_hour, item.id),
+        ):
+            product = state.products.get(job.product_id)
+            if product is None:
+                continue
+
+            production_hours = (
+                job.quantity / machine.capacity_per_hour
+                if machine.capacity_per_hour > 0
+                else float("inf")
+            )
+            changeover_hours = (
+                machine.changeover_minutes / 60 if family != product.family else 0.0
+            )
+            required = production_hours + changeover_hours
+            scheduled = job.end_hour - job.start_hour
+            if scheduled + 1e-6 < required:
+                violations.append(
+                    ScheduleViolation(
+                        code=ViolationCode.INSUFFICIENT_DURATION,
+                        message=(
+                            f"job {job.id!r} reserves {scheduled} hours "
+                            f"but requires at least {required} hours"
+                        ),
+                        job_ids=[job.id],
+                        order_ids=[job.order_id],
+                    ),
+                )
+            family = product.family
+
+
+def _check_hard_deadlines(
+    state: FactoryState,
+    jobs: list[ProductionJob],
+    hard_deadline_orders: set[str],
+    violations: list[ScheduleViolation],
+) -> None:
+    jobs_by_order: dict[str, list[ProductionJob]] = defaultdict(list)
+    for job in jobs:
+        jobs_by_order[job.order_id].append(job)
+
+    for order_id in sorted(hard_deadline_orders):
+        order = state.orders.get(order_id)
+        if order is None:
+            continue
+        order_jobs = jobs_by_order[order_id]
+        if order_jobs and max(job.end_hour for job in order_jobs) > order.due_hour:
+            violations.append(
+                ScheduleViolation(
+                    code=ViolationCode.MISSED_HARD_DEADLINE,
+                    message=(
+                        f"order {order_id!r} finishes after its hard "
+                        f"deadline at hour {order.due_hour}"
+                    ),
+                    job_ids=[job.id for job in order_jobs],
                     order_ids=[order_id],
                 ),
             )

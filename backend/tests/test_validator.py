@@ -176,3 +176,27 @@ def test_inventory_requires_stock_available_when_job_starts() -> None:
 
     assert ViolationCode.INSUFFICIENT_INVENTORY in before_arrival
     assert after_arrival.is_valid
+
+
+def test_validator_checks_duration_and_hard_deadlines() -> None:
+    state = factory_state()
+    state.machines["M1"].changeover_minutes = 30
+    candidate = job(end_hour=1, quantity=10)
+
+    result = validate_schedule(
+        state,
+        [candidate],
+        hard_deadline_orders={"O1"},
+    )
+
+    codes = {violation.code for violation in result.violations}
+    assert ViolationCode.INSUFFICIENT_DURATION in codes
+
+    state.orders["O1"].due_hour = 0.5
+    late_result = validate_schedule(
+        state,
+        [job(end_hour=2)],
+        hard_deadline_orders={"O1"},
+    )
+    late_codes = {violation.code for violation in late_result.violations}
+    assert ViolationCode.MISSED_HARD_DEADLINE in late_codes
