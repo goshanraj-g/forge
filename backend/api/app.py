@@ -5,6 +5,8 @@ from pydantic import BaseModel
 
 from backend.api.dependencies import ActiveSimulator
 from backend.api.schemas import (
+    CommitScheduleRequest,
+    CommitScheduleResponse,
     EventScheduledResponse,
     RunUntilRequest,
     SimulationResponse,
@@ -12,6 +14,7 @@ from backend.api.schemas import (
 )
 from backend.optimizer.models import OptimizeRequest, ScheduleResult
 from backend.optimizer.solver import optimize_schedule
+from backend.optimizer.validator import validate_schedule
 from backend.simulator.events import InjectableEvent
 from backend.simulator.state import FactoryState
 
@@ -118,4 +121,71 @@ def optimize_factory(
     return optimize_schedule(
         simulator.state,
         request,
+    )
+
+
+@app.post(
+    "/factories/{name}/schedules/commit",
+    response_model=CommitScheduleResponse,
+)
+def commit_schedule(
+    simulator: ActiveSimulator,
+    request: CommitScheduleRequest,
+) -> CommitScheduleResponse:
+    state = simulator.state
+    if request.expected_version != state.schedule_version:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"stale schedule version {request.expected_version}; "
+                f"current version is {state.schedule_version}"
+            ),
+        )
+
+    next_version = state.schedule_version + 1
+    if any(job.schedule_version != next_version for job in request.jobs):
+        raise HTTPException(
+            status_code=409,
+            detail=f"all jobs must target schedule version {next_version}",
+        )
+
+    validation = validate_schedule(
+        state,
+        request.jobs,
+        set(request.hard_deadline_orders),
+    )
+    if not validation.is_valid:
+        raise HTTPException(
+            status_code=422,
+            detail=[
+                violation.model_dump(mode="json") for violation in validation.violations
+            ],
+        )
+
+    scheduled_quantity = {
+        order.id: sum(job.quantity for job in request.jobs if job.order_id == order.id)
+        for order in state.open_orders()
+    }
+    incomplete_orders = [
+        order.id
+        for order in state.open_orders()
+        if abs(scheduled_quantity[order.id] - order.remaining) > 1e-6
+    ]
+    if incomplete_orders:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "message": "schedule does not cover every open order",
+                "order_ids": incomplete_orders,
+            },
+        )
+
+    committed_state = state.clone()
+    committed_state.schedule_version = next_version
+    committed_state.jobs = {job.id: job for job in request.jobs}
+    simulator.state = committed_state
+
+    return CommitScheduleResponse(
+        state=committed_state,
+        validation=validation,
     )

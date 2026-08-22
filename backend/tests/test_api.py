@@ -2,6 +2,8 @@ from fastapi.testclient import TestClient
 
 from backend.api.app import app
 from backend.api.store import factory_store
+from backend.simulator.models import Machine, Order, Product, ProductionJob
+from backend.simulator.state import FactoryState
 
 client = TestClient(app)
 
@@ -170,3 +172,77 @@ def test_optimize_returns_candidate_without_changing_factory() -> None:
     assert len(body["jobs"]) == 12
     assert body["validation"]["violations"] == []
     assert simulator.state.snapshot_hash() == original_hash
+
+
+def test_commit_schedule_revalidates_and_updates_version() -> None:
+    factory_store.clear()
+    simulator = factory_store.get("factory_01")
+    simulator.state = FactoryState(
+        machines={
+            "M1": Machine(
+                id="M1",
+                name="Line 1",
+                capacity_per_hour=10,
+                supported_products=["P1"],
+            ),
+        },
+        products={
+            "P1": Product(id="P1", name="Widget", family="widget"),
+        },
+        orders={
+            "O1": Order(id="O1", product_id="P1", quantity=10, due_hour=2),
+        },
+    )
+    job = ProductionJob(
+        id="J1",
+        order_id="O1",
+        machine_id="M1",
+        product_id="P1",
+        start_hour=0,
+        end_hour=1,
+        quantity=10,
+        schedule_version=1,
+    )
+
+    response = client.post(
+        "/factories/factory_01/schedules/commit",
+        json={
+            "expected_version": 0,
+            "jobs": [job.model_dump(mode="json")],
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["state"]["schedule_version"] == 1
+    assert len(response.json()["state"]["jobs"]) == 1
+    assert simulator.state.schedule_version == 1
+
+
+def test_commit_rejects_stale_version() -> None:
+    factory_store.clear()
+    simulator = factory_store.get("factory_01")
+    simulator.state.schedule_version = 1
+
+    response = client.post(
+        "/factories/factory_01/schedules/commit",
+        json={"expected_version": 0, "jobs": []},
+    )
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == (
+        "stale schedule version 0; current version is 1"
+    )
+
+
+def test_commit_rejects_incomplete_schedule() -> None:
+    factory_store.clear()
+
+    response = client.post(
+        "/factories/factory_01/schedules/commit",
+        json={"expected_version": 0, "jobs": []},
+    )
+
+    assert response.status_code == 409
+    assert response.json()["detail"]["message"] == (
+        "schedule does not cover every open order"
+    )
