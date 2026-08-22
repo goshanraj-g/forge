@@ -40,6 +40,17 @@ class ViolationCode(StrEnum):
     PAST_START = "past_start"
 
 
+class UnscheduledReason(StrEnum):
+    UNKNOWN_PRODUCT = "unknown_product"
+    NO_COMPATIBLE_MACHINE = "no_compatible_machine"
+    INSUFFICIENT_INVENTORY = "insufficient_inventory"
+    OUTSIDE_HORIZON = "outside_horizon"
+    HARD_DEADLINE = "hard_deadline"
+    OPTIMIZER_NOT_SELECTED = "optimizer_not_selected"
+    CONSTRAINT_CONFLICT = "constraint_conflict"
+    SEARCH_INCOMPLETE = "search_incomplete"
+
+
 class ObjectiveWeights(BaseModel):
     late_delivery: NonNegativeFloat = 1.0
     overtime: NonNegativeFloat = 1.0
@@ -98,7 +109,7 @@ class ValidationResult(BaseModel):
 
 class UnscheduledOrder(BaseModel):
     order_id: str
-    reason_code: str
+    reason_code: UnscheduledReason
     explanation: str
     required_action: str | None = None
 

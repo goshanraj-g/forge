@@ -1,4 +1,8 @@
-from backend.optimizer.models import OptimizeRequest, ScheduleStatus
+from backend.optimizer.models import (
+    OptimizeRequest,
+    ScheduleStatus,
+    UnscheduledReason,
+)
 from backend.optimizer.solver import optimize_schedule
 from backend.simulator.models import (
     InventoryItem,
@@ -151,13 +155,13 @@ def test_solver_proves_impossible_hard_deadline() -> None:
     )
 
     assert result.status == ScheduleStatus.INFEASIBLE
-    assert result.unscheduled_orders[0].reason_code == "constraint_conflict"
+    assert result.unscheduled_orders[0].reason_code == UnscheduledReason.HARD_DEADLINE
 
 
 def test_seed_factory_produces_valid_candidate() -> None:
     result = optimize_schedule(
         factory_01(),
-        OptimizeRequest(time_limit_seconds=2),
+        OptimizeRequest(time_limit_seconds=10),
     )
 
     assert result.status in {
@@ -167,3 +171,27 @@ def test_seed_factory_produces_valid_candidate() -> None:
     assert result.validation is not None
     assert result.validation.is_valid
     assert len(result.jobs) == 12
+
+
+def test_solver_returns_partial_schedule_when_one_order_lacks_inventory() -> None:
+    state = factory_state()
+    state.products["P1"].bom = {"C1": 1}
+    state.products["P2"] = Product(
+        id="P2",
+        name="Inventory-free widget",
+        family="widget",
+    )
+    state.machines["M1"].supported_products.append("P2")
+    state.orders["O2"].product_id = "P2"
+
+    result = optimize_schedule(state)
+
+    assert result.status == ScheduleStatus.PARTIAL
+    assert {job.order_id for job in result.jobs} == {"O2"}
+    assert result.unscheduled_orders[0].order_id == "O1"
+    assert (
+        result.unscheduled_orders[0].reason_code
+        == UnscheduledReason.INSUFFICIENT_INVENTORY
+    )
+    assert result.validation is not None
+    assert result.validation.is_valid

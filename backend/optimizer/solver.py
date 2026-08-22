@@ -14,6 +14,7 @@ from backend.optimizer.models import (
     ScheduleResult,
     ScheduleStatus,
     UnscheduledOrder,
+    UnscheduledReason,
 )
 from backend.optimizer.validator import validate_schedule
 from backend.simulator.engine import (
@@ -41,6 +42,7 @@ class _JobVariables:
     ends: dict[str, cp_model.IntVar]
     assigned: dict[str, cp_model.IntVar]
     intervals: dict[str, cp_model.IntervalVar]
+    scheduled: cp_model.IntVar
     start_time: cp_model.IntVar
     completion: cp_model.IntVar
     lateness: cp_model.IntVar
@@ -119,7 +121,7 @@ def optimize_schedule(
             missing_information.append(
                 _unscheduled(
                     order,
-                    "unknown_product",
+                    UnscheduledReason.UNKNOWN_PRODUCT,
                     "The order references a product that does not exist.",
                 ),
             )
@@ -196,16 +198,22 @@ def optimize_schedule(
             )
 
         if not assigned:
+            reason = (
+                UnscheduledReason.NO_COMPATIBLE_MACHINE
+                if not machines
+                else UnscheduledReason.OUTSIDE_HORIZON
+            )
             unscheduled.append(
                 _unscheduled(
                     order,
-                    "no_machine_capacity",
+                    reason,
                     "No compatible machine can finish the order in the horizon.",
                 ),
             )
             continue
 
-        model.add_exactly_one(list(assigned.values()))
+        scheduled = model.new_bool_var(f"scheduled_{order.id}")
+        model.add(sum(assigned.values()) == scheduled)
 
         start_time = model.new_int_var(
             0,
@@ -220,6 +228,8 @@ def optimize_schedule(
         for machine_id, is_assigned in assigned.items():
             model.add(start_time == starts[machine_id]).only_enforce_if(is_assigned)
             model.add(completion == ends[machine_id]).only_enforce_if(is_assigned)
+        model.add(start_time == 0).only_enforce_if(scheduled.negated())
+        model.add(completion == 0).only_enforce_if(scheduled.negated())
 
         due_bucket = _to_bucket(
             order.due_hour,
@@ -245,6 +255,8 @@ def optimize_schedule(
             ),
         )
         objective_terms.append(lateness * penalty_weight)
+        omission_penalty = 1_000_000_000 + max(0, 10 - order.priority) * 1_000_000
+        objective_terms.append((1 - scheduled) * omission_penalty)
 
         job_variables.append(
             _JobVariables(
@@ -254,6 +266,7 @@ def optimize_schedule(
                 ends=ends,
                 assigned=assigned,
                 intervals=intervals,
+                scheduled=scheduled,
                 start_time=start_time,
                 completion=completion,
                 lateness=lateness,
@@ -307,9 +320,9 @@ def optimize_schedule(
         blocked_orders = [
             _unscheduled(
                 item.order,
-                "constraint_conflict"
+                UnscheduledReason.CONSTRAINT_CONFLICT
                 if status == ScheduleStatus.INFEASIBLE
-                else "search_incomplete",
+                else UnscheduledReason.SEARCH_INCOMPLETE,
                 "The complete constraint model has no feasible schedule."
                 if status == ScheduleStatus.INFEASIBLE
                 else "Search ended before a feasible schedule was established.",
@@ -325,6 +338,12 @@ def optimize_schedule(
         )
 
     jobs = _read_jobs(state, options, solver, job_variables)
+    solver_unscheduled = [
+        _solver_omission(state, options, item)
+        for item in job_variables
+        if not solver.boolean_value(item.scheduled)
+    ]
+    all_unscheduled = [*unscheduled, *solver_unscheduled]
     validation = validate_schedule(
         state,
         jobs,
@@ -332,9 +351,9 @@ def optimize_schedule(
     )
     status = (
         ScheduleStatus.INFEASIBLE
-        if unscheduled and not jobs
+        if all_unscheduled and not jobs
         else ScheduleStatus.PARTIAL
-        if unscheduled
+        if all_unscheduled
         else (
             ScheduleStatus.OPTIMAL
             if solver_status == cp_model.OPTIMAL
@@ -361,7 +380,7 @@ def optimize_schedule(
     return ScheduleResult(
         status=status,
         jobs=jobs,
-        unscheduled_orders=unscheduled,
+        unscheduled_orders=all_unscheduled,
         cost=ScheduleCost(
             late_penalty=q(late_penalty),
             overtime=q(overtime_hours * OVERTIME_COST_PER_HOUR),
@@ -481,6 +500,15 @@ def _add_machine_sequences(
                 options,
                 objective_terms,
             )
+            _append_setup_overtime_term(
+                model,
+                state,
+                options,
+                first,
+                item.starts[machine.id],
+                machine.changeover_minutes / 60 if setup else 0.0,
+                objective_terms,
+            )
 
         for before_index, before in enumerate(items, start=1):
             for after_index, after in enumerate(items, start=1):
@@ -504,6 +532,15 @@ def _add_machine_sequences(
                     follows,
                     setup,
                     options,
+                    objective_terms,
+                )
+                _append_setup_overtime_term(
+                    model,
+                    state,
+                    options,
+                    follows,
+                    after.starts[machine.id],
+                    machine.changeover_minutes / 60 if setup else 0.0,
                     objective_terms,
                 )
 
@@ -586,6 +623,46 @@ def _add_overtime_term(
     objective_terms.append(overtime * coefficient)
 
 
+def _append_setup_overtime_term(
+    model: cp_model.CpModel,
+    state: FactoryState,
+    options: OptimizeRequest,
+    transition: cp_model.IntVar,
+    production_start: cp_model.IntVar,
+    changeover_hours: float,
+    objective_terms: list[cp_model.LinearExpr],
+) -> None:
+    if changeover_hours == 0:
+        return
+
+    max_cost = round(
+        changeover_hours * OVERTIME_COST_PER_HOUR * options.weights.overtime * 100,
+    )
+    overtime_cost = model.new_int_var(
+        0,
+        max_cost,
+        f"setup_overtime_{transition.name}",
+    )
+    choices = []
+    horizon_buckets = ceil(options.horizon_hours / options.bucket_hours)
+    for start_bucket in range(horizon_buckets + 1):
+        start_hour = state.sim_hour + start_bucket * options.bucket_hours
+        cost = round(
+            overtime_overlap(start_hour - changeover_hours, start_hour)
+            * OVERTIME_COST_PER_HOUR
+            * options.weights.overtime
+            * 100,
+        )
+        choices.append((start_bucket, cost))
+
+    model.add_allowed_assignments(
+        [production_start, overtime_cost],
+        choices,
+    ).only_enforce_if(transition)
+    model.add(overtime_cost == 0).only_enforce_if(transition.negated())
+    objective_terms.append(overtime_cost)
+
+
 def _scheduled_changeover_hours(
     state: FactoryState,
     jobs: list[ProductionJob],
@@ -603,6 +680,46 @@ def _scheduled_changeover_hours(
                 total += machine.changeover_minutes / 60
             family = product_family
     return q(total)
+
+
+def _solver_omission(
+    state: FactoryState,
+    options: OptimizeRequest,
+    item: _JobVariables,
+) -> UnscheduledOrder:
+    horizon_end = state.sim_hour + options.horizon_hours
+    for component_id, amount in item.product.bom.items():
+        available = (
+            state.inventory[component_id].available
+            if component_id in state.inventory
+            else 0.0
+        )
+        incoming = sum(
+            shipment.quantity
+            for shipment in state.shipment_list()
+            if shipment.component_id == component_id
+            and shipment.status != ShipmentStatus.RECEIVED
+            and shipment.eta_hour <= horizon_end
+        )
+        if amount * item.order.remaining > available + incoming:
+            return _unscheduled(
+                item.order,
+                UnscheduledReason.INSUFFICIENT_INVENTORY,
+                f"Not enough {component_id!r} is available within the horizon.",
+            )
+
+    if item.order.id in options.hard_deadline_orders:
+        return _unscheduled(
+            item.order,
+            UnscheduledReason.HARD_DEADLINE,
+            "The order cannot be completed without missing its hard deadline.",
+        )
+
+    return _unscheduled(
+        item.order,
+        UnscheduledReason.OPTIMIZER_NOT_SELECTED,
+        "The order was omitted so the solver could return a feasible partial schedule.",
+    )
 
 
 def _add_inventory_constraints(
@@ -641,7 +758,10 @@ def _add_inventory_constraints(
         total_supply = initial + sum(
             round(shipment.quantity * scale) for shipment in shipments
         )
-        model.add(sum(requirements.values()) <= total_supply)
+        model.add(
+            sum(requirements[item.order.id] * item.scheduled for item in variables)
+            <= total_supply,
+        )
 
         arrival_buckets = sorted(
             {
@@ -670,7 +790,10 @@ def _add_inventory_constraints(
                     starts_before,
                 )
                 model.add(item.start_time >= arrival_bucket).only_enforce_if(
-                    starts_before.negated(),
+                    [item.scheduled, starts_before.negated()],
+                )
+                model.add(starts_before == 0).only_enforce_if(
+                    item.scheduled.negated(),
                 )
                 consumed_before.append(required * starts_before)
 
@@ -689,7 +812,7 @@ def _add_inventory_constraints(
 
 def _unscheduled(
     order: Order,
-    reason_code: str,
+    reason_code: UnscheduledReason,
     explanation: str,
 ) -> UnscheduledOrder:
     return UnscheduledOrder(

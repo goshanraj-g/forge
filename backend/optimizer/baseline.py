@@ -9,6 +9,7 @@ from backend.optimizer.models import (
     ScheduleResult,
     ScheduleStatus,
     UnscheduledOrder,
+    UnscheduledReason,
 )
 from backend.optimizer.validator import validate_schedule
 from backend.simulator.models import (
@@ -58,12 +59,14 @@ def build_baseline_schedule(
     for order in orders:
         product = state.products.get(order.product_id)
         if product is None:
-            unscheduled.append(_unscheduled(order, "unknown_product"))
+            unscheduled.append(_unscheduled(order, UnscheduledReason.UNKNOWN_PRODUCT))
             continue
 
         candidates = _candidate_machines(state, machine_plans, product)
         if not candidates:
-            unscheduled.append(_unscheduled(order, "no_compatible_machine"))
+            unscheduled.append(
+                _unscheduled(order, UnscheduledReason.NO_COMPATIBLE_MACHINE),
+            )
             continue
 
         quantity = int(order.remaining)
@@ -85,14 +88,16 @@ def build_baseline_schedule(
             received_shipments,
         )
         if inventory_ready_hour is None:
-            unscheduled.append(_unscheduled(order, "insufficient_inventory"))
+            unscheduled.append(
+                _unscheduled(order, UnscheduledReason.INSUFFICIENT_INVENTORY),
+            )
             continue
         start_hour = inventory_ready_hour
 
         changeover = _changeover_hours(machine, machine_plans[machine.id], product)
         end_hour = q(start_hour + changeover + quantity / machine.capacity_per_hour)
         if end_hour > horizon_end:
-            unscheduled.append(_unscheduled(order, "outside_horizon"))
+            unscheduled.append(_unscheduled(order, UnscheduledReason.OUTSIDE_HORIZON))
             continue
 
         job = ProductionJob(
@@ -228,7 +233,7 @@ def _consume_inventory(
         inventory[component_id] -= amount * quantity
 
 
-def _unscheduled(order: Order, reason: str) -> UnscheduledOrder:
+def _unscheduled(order: Order, reason: UnscheduledReason) -> UnscheduledOrder:
     explanations = {
         "unknown_product": "The order references a product that does not exist.",
         "no_compatible_machine": "No available machine can produce this product.",

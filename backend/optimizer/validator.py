@@ -360,6 +360,7 @@ def _check_inventory(
             on_hand = available.get(component_id, 0)
 
             if required > on_hand:
+                # One violation per job/component is enough; avoid cascading negatives.
                 violations.append(
                     ScheduleViolation(
                         code=ViolationCode.INSUFFICIENT_INVENTORY,
