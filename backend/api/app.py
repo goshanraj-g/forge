@@ -3,12 +3,12 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
+from backend.api.dependencies import ActiveSimulator
 from backend.api.schemas import (
     RunUntilRequest,
     SimulationResponse,
     TickRequest,
 )
-from backend.api.store import factory_store
 from backend.simulator.state import FactoryState
 
 
@@ -35,14 +35,8 @@ def health() -> HealthResponse:
     "/factories/{name}",
     response_model=FactoryState,
 )
-def get_factory(name: str) -> FactoryState:
-    try:
-        return factory_store.get(name).state
-    except KeyError as error:
-        raise HTTPException(
-            status_code=404,
-            detail=f"unknown factory {name!r}",
-        ) from error
+def get_factory(simulator: ActiveSimulator) -> FactoryState:
+    return simulator.state
 
 
 @app.post(
@@ -50,17 +44,9 @@ def get_factory(name: str) -> FactoryState:
     response_model=SimulationResponse,
 )
 def tick_factory(
-    name: str,
+    simulator: ActiveSimulator,
     request: TickRequest,
 ) -> SimulationResponse:
-    try:
-        simulator = factory_store.get(name)
-    except KeyError as error:
-        raise HTTPException(
-            status_code=404,
-            detail=f"unknown factory {name!r}",
-        ) from error
-
     events = simulator.tick(request.step_hours)
 
     return SimulationResponse(
@@ -74,17 +60,9 @@ def tick_factory(
     response_model=SimulationResponse,
 )
 def run_factory_until(
-    name: str,
+    simulator: ActiveSimulator,
     request: RunUntilRequest,
 ) -> SimulationResponse:
-    try:
-        simulator = factory_store.get(name)
-    except KeyError as error:
-        raise HTTPException(
-            status_code=404,
-            detail=f"unknown factory {name!r}",
-        ) from error
-
     try:
         events = simulator.run_until(
             request.hour,
