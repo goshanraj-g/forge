@@ -280,8 +280,20 @@ class FactorySimulator:
 
             effective_step = step
             if machine.current_family != product.family:
-                changeover = min(step, machine.changeover_minutes / 60)
+                if machine.changeover_target_family != product.family:
+                    machine.changeover_target_family = product.family
+                    machine.changeover_remaining_hours = q(
+                        machine.changeover_minutes / 60,
+                    )
+
+                changeover = min(
+                    step,
+                    machine.changeover_remaining_hours,
+                )
                 effective_step = q(step - changeover)
+                machine.changeover_remaining_hours = q(
+                    machine.changeover_remaining_hours - changeover,
+                )
                 self.state.changeover_hours = q(
                     self.state.changeover_hours + changeover,
                 )
@@ -289,8 +301,15 @@ class FactorySimulator:
                     self.state.production_cost
                     + changeover * CHANGEOVER_COST_PER_HOUR,
                 )
-                machine.current_family = product.family
-                if effective_step <= 0:
+
+                if machine.changeover_remaining_hours == 0:
+                    machine.current_family = product.family
+                    machine.changeover_target_family = None
+
+                if (
+                    effective_step <= 0
+                    or machine.current_family != product.family
+                ):
                     machine.status = MachineStatus.RUNNING
                     continue
 
@@ -390,7 +409,7 @@ class FactorySimulator:
 
     def tick(self, step: float | None = None) -> list[ev.BaseEvent]:
         """Advance the simulation by one fixed step."""
-        actual_step = step or self.context.step_hours
+        actual_step = self.context.step_hours if step is None else step
         if actual_step <= 0:
             raise ValueError("step must be positive")
 
@@ -412,7 +431,7 @@ class FactorySimulator:
         step: float | None = None,
     ) -> list[ev.BaseEvent]:
         """Advance in fixed steps until the requested hour."""
-        actual_step = step or self.context.step_hours
+        actual_step = self.context.step_hours if step is None else step
         if actual_step <= 0:
             raise ValueError("step must be positive")
         if hour < self.state.sim_hour:

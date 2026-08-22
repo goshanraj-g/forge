@@ -20,7 +20,10 @@ from backend.simulator.models import (
 from backend.simulator.state import FactoryState
 
 
-def production_state() -> FactoryState:
+def production_state(
+    current_family: str | None = "family",
+    changeover_minutes: int = 0,
+) -> FactoryState:
     return FactoryState(
         machines={
             "M1": Machine(
@@ -28,7 +31,8 @@ def production_state() -> FactoryState:
                 name="Line 1",
                 capacity_per_hour=10,
                 supported_products=["P1"],
-                current_family="family",
+                current_family=current_family,
+                changeover_minutes=changeover_minutes,
             ),
         },
         products={
@@ -77,6 +81,20 @@ def test_context_generates_repeatable_ids_and_rejects_bad_steps() -> None:
 
     with pytest.raises(ValueError, match="step_hours must be positive"):
         SimulationContext(step_hours=0)
+
+
+def test_tick_rejects_explicit_zero_step() -> None:
+    simulator = FactorySimulator(production_state())
+
+    with pytest.raises(ValueError, match="step must be positive"):
+        simulator.tick(0)
+
+
+def test_run_until_rejects_explicit_zero_step() -> None:
+    simulator = FactorySimulator(production_state())
+
+    with pytest.raises(ValueError, match="step must be positive"):
+        simulator.run_until(1, step=0)
 
 
 def test_overtime_overlap_repeats_each_day() -> None:
@@ -147,6 +165,38 @@ def test_tick_produces_units_consumes_inventory_and_completes_order() -> None:
     assert state.inventory["C1"].on_hand == 10
     assert state.production_cost == 20
     assert any(isinstance(event, ev.OrderCompleteEvent) for event in emitted)
+
+
+def test_changeover_spans_multiple_ticks() -> None:
+    state = production_state(current_family=None, changeover_minutes=45)
+    machine = state.machines["M1"]
+    simulator = FactorySimulator(state)
+
+    simulator.tick(0.25)
+    assert machine.changeover_remaining_hours == 0.5
+
+    simulator.tick(0.25)
+    assert machine.changeover_remaining_hours == 0.25
+
+    simulator.tick(0.25)
+    assert machine.changeover_remaining_hours == 0
+    assert machine.current_family == "family"
+
+    simulator.tick(0.25)
+    assert state.jobs["J1"].produced == 2.5
+    assert state.changeover_hours == 0.75
+
+
+def test_changeover_accounting_does_not_depend_on_tick_size() -> None:
+    fine_state = production_state(current_family=None, changeover_minutes=45)
+    coarse_state = production_state(current_family=None, changeover_minutes=45)
+
+    FactorySimulator(fine_state).run_until(1, step=0.25)
+    FactorySimulator(coarse_state).run_until(1, step=1)
+
+    assert fine_state.changeover_hours == coarse_state.changeover_hours == 0.75
+    assert fine_state.production_cost == coarse_state.production_cost
+    assert fine_state.jobs["J1"].produced == coarse_state.jobs["J1"].produced
 
 
 def test_identical_runs_produce_identical_state_and_log() -> None:
