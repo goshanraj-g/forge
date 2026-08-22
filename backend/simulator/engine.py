@@ -107,11 +107,10 @@ class FactorySimulator:
         ]
 
         if due:
-            due_ids = {event.id for event in due}
             self.pending = [
                 event
                 for event in self.pending
-                if event.id not in due_ids
+                if event.sim_hour > upto_hour
             ]
         return ev.sort_events(due)
 
