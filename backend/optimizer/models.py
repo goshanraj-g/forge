@@ -24,14 +24,17 @@ class ScheduleStatus(StrEnum):
 
 
 class ViolationCode(StrEnum):
+    DUPLICATE_JOB = "duplicate_job"
     UNKNOWN_ORDER = "unknown_order"
     UNKNOWN_MACHINE = "unknown_machine"
     UNKNOWN_PRODUCT = "unknown_product"
+    ORDER_PRODUCT_MISMATCH = "order_product_mismatch"
     INCOMPATIBLE_MACHINE = "incompatible_machine"
     MACHINE_DOWN = "machine_down"
     OVERLAPPING_JOBS = "overlapping_jobs"
     INSUFFICIENT_INVENTORY = "insufficient_inventory"
     INVALID_QUANTITY = "invalid_quantity"
+    PAST_START = "past_start"
 
 
 class ObjectiveWeights(BaseModel):
