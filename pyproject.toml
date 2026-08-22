@@ -4,6 +4,8 @@ version = "0.1.0"
 description = "Factory decision intelligence through simulation, optimization, and AI"
 requires-python = ">=3.11"
 dependencies = [
+    "numpy>=2.0.2,<2.5",
+    "ortools>=9.11",
     "pydantic>=2.7",
 ]
 
