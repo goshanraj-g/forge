@@ -1,7 +1,10 @@
 """FastAPI application"""
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+
+from backend.api.store import factory_store
+from backend.simulator.state import FactoryState
 
 
 class HealthResponse(BaseModel):
@@ -21,3 +24,17 @@ def health() -> HealthResponse:
         status="ok",
         service="forgeops",
     )
+
+
+@app.get(
+    "/factories/{name}",
+    response_model=FactoryState,
+)
+def get_factory(name: str) -> FactoryState:
+    try:
+        return factory_store.get(name).state
+    except KeyError as error:
+        raise HTTPException(
+            status_code=404,
+            detail=f"unknown factory {name!r}",
+        ) from error

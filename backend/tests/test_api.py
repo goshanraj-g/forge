@@ -13,3 +13,23 @@ def test_health() -> None:
         "status": "ok",
         "service": "forgeops",
     }
+
+
+def test_get_factory() -> None:
+    response = client.get("/factories/factory_01")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["name"] == "factory_01"
+    assert body["sim_hour"] == 0
+    assert len(body["machines"]) == 5
+    assert len(body["orders"]) == 12
+
+
+def test_get_unknown_factory_returns_404() -> None:
+    response = client.get("/factories/missing")
+
+    assert response.status_code == 404
+    assert response.json() == {
+        "detail": "unknown factory 'missing'",
+    }
