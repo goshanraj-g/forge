@@ -26,7 +26,7 @@ CHANGEOVER_COST_PER_HOUR = 80.0
 
 @dataclass
 class SimulationContext:
-    """ Values and utilities owned by one simulation run """
+    """Values and utilities owned by one simulation run"""
 
     seed: int = 0
     step_hours: float = DEFAULT_STEP_HOURS
@@ -42,6 +42,7 @@ class SimulationContext:
     def next_id(self, prefix: str) -> str:
         self._counter += 1
         return f"{prefix}-{self._counter:05d}"
+
 
 def overtime_overlap(
     start: float,
@@ -69,8 +70,10 @@ def overtime_overlap(
             total += overlap_end - overlap_start
     return q(total)
 
+
 class FactorySimulator:
     """Own factory state and apply all simulation state changes"""
+
     def __init__(
         self,
         state: FactoryState,
@@ -84,33 +87,26 @@ class FactorySimulator:
         self._low_inventory_components: set[str] = set()
 
     def schedule(self, event: ev.BaseEvent) -> None:
-        """ Schedule an event for a future simulation time """
+        """Schedule an event for a future simulation time"""
         if not event.id:
             event.id = self.context.next_id("evt")
 
         self.pending = ev.sort_events([*self.pending, event])
 
     def _emit(self, event: ev.BaseEvent) -> None:
-        """ Add an event to the audit log"""
+        """Add an event to the audit log"""
         if not event.id:
             event.id = self.context.next_id("evt")
 
         self.log.append(event)
 
-
     def _due_events(self, upto_hour: float) -> list[ev.BaseEvent]:
         """Remove and return events due by the supplied hour"""
-        due = [
-            event
-            for event in self.pending
-            if event.sim_hour <= upto_hour
-        ]
+        due = [event for event in self.pending if event.sim_hour <= upto_hour]
 
         if due:
             self.pending = [
-                event
-                for event in self.pending
-                if event.sim_hour > upto_hour
+                event for event in self.pending if event.sim_hour > upto_hour
             ]
         return ev.sort_events(due)
 
@@ -298,18 +294,14 @@ class FactorySimulator:
                     self.state.changeover_hours + changeover,
                 )
                 self.state.production_cost = q(
-                    self.state.production_cost
-                    + changeover * CHANGEOVER_COST_PER_HOUR,
+                    self.state.production_cost + changeover * CHANGEOVER_COST_PER_HOUR,
                 )
 
                 if machine.changeover_remaining_hours == 0:
                     machine.current_family = product.family
                     machine.changeover_target_family = None
 
-                if (
-                    effective_step <= 0
-                    or machine.current_family != product.family
-                ):
+                if effective_step <= 0 or machine.current_family != product.family:
                     machine.status = MachineStatus.RUNNING
                     continue
 
@@ -344,8 +336,7 @@ class FactorySimulator:
                     self.state.overtime_hours + worked,
                 )
                 self.state.production_cost = q(
-                    self.state.production_cost
-                    + worked * OVERTIME_COST_PER_HOUR,
+                    self.state.production_cost + worked * OVERTIME_COST_PER_HOUR,
                 )
 
     def _settle_orders(self) -> None:
@@ -375,8 +366,7 @@ class FactorySimulator:
                 continue
 
             already_reported = any(
-                isinstance(event, ev.OrderLateEvent)
-                and event.order_id == order.id
+                isinstance(event, ev.OrderLateEvent) and event.order_id == order.id
                 for event in self.log
             )
             if not already_reported:

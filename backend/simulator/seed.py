@@ -14,6 +14,7 @@ from backend.simulator.state import FactoryState
 
 HORIZON_HOURS = 72.0
 
+
 def _machines() -> list[Machine]:
     return [
         Machine(
@@ -52,6 +53,7 @@ def _machines() -> list[Machine]:
             changeover_minutes=20,
         ),
     ]
+
 
 def _products() -> list[Product]:
     return [
@@ -190,18 +192,9 @@ def factory_01() -> FactoryState:
         machines={machine.id: machine for machine in _machines()},
         products={product.id: product for product in _products()},
         orders={order.id: order for order in _orders()},
-        inventory={
-            item.component_id: item
-            for item in _inventory()
-        },
-        suppliers={
-            supplier.id: supplier
-            for supplier in _suppliers()
-        },
-        shipments={
-            shipment.id: shipment
-            for shipment in _shipments()
-        },
+        inventory={item.component_id: item for item in _inventory()},
+        suppliers={supplier.id: supplier for supplier in _suppliers()},
+        shipments={shipment.id: shipment for shipment in _shipments()},
     )
 
 

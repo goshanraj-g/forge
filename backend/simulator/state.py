@@ -61,11 +61,7 @@ class FactoryState(BaseModel):
         return [order for order in self.order_list() if order.is_open()]
 
     def jobs_for_machine(self, machine_id: str) -> list[ProductionJob]:
-        return [
-            job
-            for job in self.job_list()
-            if job.machine_id == machine_id
-        ]
+        return [job for job in self.job_list() if job.machine_id == machine_id]
 
     def total_cost(self) -> float:
         return round(

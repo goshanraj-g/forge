@@ -24,6 +24,7 @@ class EventType(StrEnum):
     ORDER_COMPLETE = "order_complete"
     ORDER_LATE = "order_late"
 
+
 class BaseEvent(BaseModel):
     id: str = ""
     sim_hour: NonNegativeFloat
