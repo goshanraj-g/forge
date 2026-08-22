@@ -42,6 +42,9 @@ select = [
     "RUF",  # ruff-specific rules
 ]
 
+[tool.ruff.lint.per-file-ignores]
+"backend/tests/*" = ["B011"]
+
 [tool.mypy]
 python_version = "3.11"
 files = ["backend"]

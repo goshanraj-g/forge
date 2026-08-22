@@ -48,6 +48,8 @@ class Machine(BaseModel):
     status: MachineStatus = MachineStatus.IDLE
     down_until_hour: float | None = None
     current_family: str | None = None
+    changeover_target_family: str | None = None
+    changeover_remaining_hours: NonNegativeFloat = 0.0
 
     def can_produce(self, product_id: str) -> bool:
         return product_id in self.supported_products
