@@ -3,6 +3,7 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
+from backend.api.schemas import SimulationResponse, TickRequest
 from backend.api.store import factory_store
 from backend.simulator.state import FactoryState
 
@@ -38,3 +39,27 @@ def get_factory(name: str) -> FactoryState:
             status_code=404,
             detail=f"unknown factory {name!r}",
         ) from error
+
+
+@app.post(
+    "/factories/{name}/tick",
+    response_model=SimulationResponse,
+)
+def tick_factory(
+    name: str,
+    request: TickRequest,
+) -> SimulationResponse:
+    try:
+        simulator = factory_store.get(name)
+    except KeyError as error:
+        raise HTTPException(
+            status_code=404,
+            detail=f"unknown factory {name!r}",
+        ) from error
+
+    events = simulator.tick(request.step_hours)
+
+    return SimulationResponse(
+        state=simulator.state,
+        events=events,
+    )

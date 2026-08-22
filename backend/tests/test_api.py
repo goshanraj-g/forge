@@ -1,6 +1,7 @@
 from fastapi.testclient import TestClient
 
 from backend.api.app import app
+from backend.api.store import factory_store
 
 client = TestClient(app)
 
@@ -33,3 +34,24 @@ def test_get_unknown_factory_returns_404() -> None:
     assert response.json() == {
         "detail": "unknown factory 'missing'",
     }
+
+
+def test_tick_advances_factory_clock() -> None:
+    factory_store.clear()
+
+    response = client.post(
+        "/factories/factory_01/tick",
+        json={"step_hours": 0.5},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["state"]["sim_hour"] == 0.5
+
+
+def test_tick_rejects_nonpositive_step() -> None:
+    response = client.post(
+        "/factories/factory_01/tick",
+        json={"step_hours": 0},
+    )
+
+    assert response.status_code == 422
