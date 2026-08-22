@@ -55,3 +55,34 @@ def test_tick_rejects_nonpositive_step() -> None:
     )
 
     assert response.status_code == 422
+
+
+def test_run_until_advances_to_requested_hour() -> None:
+    factory_store.clear()
+
+    response = client.post(
+        "/factories/factory_01/run-until",
+        json={
+            "hour": 2,
+            "step_hours": 0.25,
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["state"]["sim_hour"] == 2
+
+
+def test_run_until_rejects_backwards_time() -> None:
+    factory_store.clear()
+    simulator = factory_store.get("factory_01")
+    simulator.tick(1)
+
+    response = client.post(
+        "/factories/factory_01/run-until",
+        json={"hour": 0.5},
+    )
+
+    assert response.status_code == 409
+    assert response.json() == {
+        "detail": "cannot run backwards",
+    }

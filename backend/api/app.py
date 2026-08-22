@@ -3,7 +3,11 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
-from backend.api.schemas import SimulationResponse, TickRequest
+from backend.api.schemas import (
+    RunUntilRequest,
+    SimulationResponse,
+    TickRequest,
+)
 from backend.api.store import factory_store
 from backend.simulator.state import FactoryState
 
@@ -58,6 +62,39 @@ def tick_factory(
         ) from error
 
     events = simulator.tick(request.step_hours)
+
+    return SimulationResponse(
+        state=simulator.state,
+        events=events,
+    )
+
+
+@app.post(
+    "/factories/{name}/run-until",
+    response_model=SimulationResponse,
+)
+def run_factory_until(
+    name: str,
+    request: RunUntilRequest,
+) -> SimulationResponse:
+    try:
+        simulator = factory_store.get(name)
+    except KeyError as error:
+        raise HTTPException(
+            status_code=404,
+            detail=f"unknown factory {name!r}",
+        ) from error
+
+    try:
+        events = simulator.run_until(
+            request.hour,
+            request.step_hours,
+        )
+    except ValueError as error:
+        raise HTTPException(
+            status_code=409,
+            detail=str(error),
+        ) from error
 
     return SimulationResponse(
         state=simulator.state,
