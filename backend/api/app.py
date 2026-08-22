@@ -10,6 +10,8 @@ from backend.api.schemas import (
     SimulationResponse,
     TickRequest,
 )
+from backend.optimizer.models import OptimizeRequest, ScheduleResult
+from backend.optimizer.solver import optimize_schedule
 from backend.simulator.events import InjectableEvent
 from backend.simulator.state import FactoryState
 
@@ -102,4 +104,18 @@ def schedule_factory_event(
     return EventScheduledResponse(
         event=event,
         pending_event_count=len(simulator.pending),
+    )
+
+
+@app.post(
+    "/factories/{name}/optimize",
+    response_model=ScheduleResult,
+)
+def optimize_factory(
+    simulator: ActiveSimulator,
+    request: OptimizeRequest,
+) -> ScheduleResult:
+    return optimize_schedule(
+        simulator.state,
+        request,
     )

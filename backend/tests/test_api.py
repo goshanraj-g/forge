@@ -148,3 +148,25 @@ def test_rejects_noninjectable_event_type() -> None:
     )
 
     assert response.status_code == 422
+
+
+def test_optimize_returns_candidate_without_changing_factory() -> None:
+    factory_store.clear()
+    simulator = factory_store.get("factory_01")
+    original_hash = simulator.state.snapshot_hash()
+
+    response = client.post(
+        "/factories/factory_01/optimize",
+        json={
+            "horizon_hours": 72,
+            "bucket_hours": 1,
+            "time_limit_seconds": 10,
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] in {"optimal", "feasible"}
+    assert len(body["jobs"]) == 12
+    assert body["validation"]["violations"] == []
+    assert simulator.state.snapshot_hash() == original_hash
