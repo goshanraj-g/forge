@@ -86,3 +86,65 @@ def test_run_until_rejects_backwards_time() -> None:
     assert response.json() == {
         "detail": "cannot run backwards",
     }
+
+
+def test_schedule_and_apply_machine_failure() -> None:
+    factory_store.clear()
+
+    scheduled = client.post(
+        "/factories/factory_01/events",
+        json={
+            "type": "machine_failure",
+            "sim_hour": 0.5,
+            "machine_id": "M1",
+            "duration_hours": 2,
+        },
+    )
+
+    assert scheduled.status_code == 202
+    assert scheduled.json()["event"]["id"] == "evt-00001"
+    assert scheduled.json()["pending_event_count"] == 1
+
+    ticked = client.post(
+        "/factories/factory_01/tick",
+        json={"step_hours": 0.5},
+    )
+
+    assert ticked.status_code == 200
+    assert ticked.json()["state"]["machines"]["M1"]["status"] == "down"
+
+
+def test_rejects_event_in_the_past() -> None:
+    factory_store.clear()
+    factory_store.get("factory_01").tick(1)
+
+    response = client.post(
+        "/factories/factory_01/events",
+        json={
+            "type": "machine_failure",
+            "sim_hour": 0.5,
+            "machine_id": "M1",
+            "duration_hours": 2,
+        },
+    )
+
+    assert response.status_code == 409
+    assert response.json() == {
+        "detail": "cannot schedule an event in the past",
+    }
+
+
+def test_rejects_noninjectable_event_type() -> None:
+    factory_store.clear()
+
+    response = client.post(
+        "/factories/factory_01/events",
+        json={
+            "type": "order_complete",
+            "sim_hour": 1,
+            "order_id": "ORD-001",
+            "hours_late": 0,
+        },
+    )
+
+    assert response.status_code == 422

@@ -5,10 +5,12 @@ from pydantic import BaseModel
 
 from backend.api.dependencies import ActiveSimulator
 from backend.api.schemas import (
+    EventScheduledResponse,
     RunUntilRequest,
     SimulationResponse,
     TickRequest,
 )
+from backend.simulator.events import InjectableEvent
 from backend.simulator.state import FactoryState
 
 
@@ -77,4 +79,27 @@ def run_factory_until(
     return SimulationResponse(
         state=simulator.state,
         events=events,
+    )
+
+
+@app.post(
+    "/factories/{name}/events",
+    response_model=EventScheduledResponse,
+    status_code=202,
+)
+def schedule_factory_event(
+    simulator: ActiveSimulator,
+    event: InjectableEvent,
+) -> EventScheduledResponse:
+    if event.sim_hour < simulator.state.sim_hour:
+        raise HTTPException(
+            status_code=409,
+            detail="cannot schedule an event in the past",
+        )
+
+    simulator.schedule(event)
+
+    return EventScheduledResponse(
+        event=event,
+        pending_event_count=len(simulator.pending),
     )

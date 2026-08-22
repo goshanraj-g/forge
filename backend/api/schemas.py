@@ -18,3 +18,8 @@ class SimulationResponse(BaseModel):
 class RunUntilRequest(BaseModel):
     hour: NonNegativeFloat
     step_hours: PositiveFloat | None = None
+
+
+class EventScheduledResponse(BaseModel):
+    event: SerializeAsAny[BaseEvent]
+    pending_event_count: int
