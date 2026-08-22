@@ -35,6 +35,7 @@ def test_schedule_cost_reports_total_and_weighted_cost() -> None:
         (ScheduleStatus.OPTIMAL, True),
         (ScheduleStatus.FEASIBLE, True),
         (ScheduleStatus.PARTIAL, False),
+        (ScheduleStatus.NEEDS_INFORMATION, False),
         (ScheduleStatus.INFEASIBLE, False),
         (ScheduleStatus.UNKNOWN, False),
         (ScheduleStatus.ERROR, False),

@@ -18,6 +18,7 @@ class ScheduleStatus(StrEnum):
     OPTIMAL = "optimal"
     FEASIBLE = "feasible"
     PARTIAL = "partial"
+    NEEDS_INFORMATION = "needs_information"
     INFEASIBLE = "infeasible"
     UNKNOWN = "unknown"
     ERROR = "error"
