@@ -36,6 +36,11 @@ Regenerate the baseline evaluation table from clean factory snapshots with:
 python -m backend.evaluation
 ```
 
+The baseline table uses the production CP-SAT scheduler. In the web application,
+the evaluation page also offers an explicit **Run real agent evaluation** action.
+It adds an agent policy to the same scenarios and scheduler; the action is opt-in
+because it makes live model calls and its output may vary between runs.
+
 For the PostgreSQL/pgvector deployment, copy `.env.example` to `.env`, add the
 required secrets, and start the database, migrations, and API together:
 

@@ -1,11 +1,12 @@
 """Request and response models for the API"""
 
+from typing import Annotated
+
 from pydantic import (
     BaseModel,
     Field,
-    NonNegativeFloat,
+    FiniteFloat,
     NonNegativeInt,
-    PositiveFloat,
     SerializeAsAny,
 )
 
@@ -15,9 +16,12 @@ from backend.simulator.events import BaseEvent
 from backend.simulator.models import ProductionJob
 from backend.simulator.state import FactoryState
 
+PositiveFiniteFloat = Annotated[FiniteFloat, Field(gt=0)]
+NonNegativeFiniteFloat = Annotated[FiniteFloat, Field(ge=0)]
+
 
 class TickRequest(BaseModel):
-    step_hours: PositiveFloat | None = None
+    step_hours: PositiveFiniteFloat | None = None
 
 
 class SimulationResponse(BaseModel):
@@ -26,8 +30,8 @@ class SimulationResponse(BaseModel):
 
 
 class RunUntilRequest(BaseModel):
-    hour: NonNegativeFloat
-    step_hours: PositiveFloat | None = None
+    hour: NonNegativeFiniteFloat
+    step_hours: PositiveFiniteFloat | None = None
 
 
 class EventScheduledResponse(BaseModel):

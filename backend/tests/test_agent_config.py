@@ -38,5 +38,23 @@ def test_settings_reject_nonpositive_timeout(monkeypatch: pytest.MonkeyPatch) ->
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
     monkeypatch.setenv("FORGEOPS_AGENT_TIMEOUT_SECONDS", "0")
 
-    with pytest.raises(RuntimeError, match="must be positive"):
+    with pytest.raises(RuntimeError, match="must be finite and positive"):
+        AgentSettings.from_environment()
+
+
+def test_settings_reject_nonnumeric_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("FORGEOPS_AGENT_MODEL", "test-model")
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv("FORGEOPS_AGENT_TIMEOUT_SECONDS", "invalid")
+
+    with pytest.raises(RuntimeError, match="must be a number"):
+        AgentSettings.from_environment()
+
+
+def test_settings_reject_nonfinite_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("FORGEOPS_AGENT_MODEL", "test-model")
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv("FORGEOPS_AGENT_TIMEOUT_SECONDS", "nan")
+
+    with pytest.raises(RuntimeError, match="must be finite and positive"):
         AgentSettings.from_environment()

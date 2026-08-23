@@ -15,6 +15,10 @@ export function getEvaluations(): Promise<EvaluationComparison> {
   return request('/evaluations')
 }
 
+export function runAgentEvaluations(): Promise<EvaluationComparison> {
+  return request('/evaluations/agent', { method: 'POST' })
+}
+
 export function investigateEvent(
   name: string,
   eventId: string,
@@ -38,10 +42,16 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     const body = (await response.json().catch(() => null)) as {
       detail?: unknown
     } | null
+    const detail = body?.detail
     const message =
-      typeof body?.detail === 'string'
-        ? body.detail
-        : `Request failed with status ${response.status}`
+      typeof detail === 'string'
+        ? detail
+        : detail &&
+            typeof detail === 'object' &&
+            'message' in detail &&
+            typeof detail.message === 'string'
+          ? detail.message
+          : `Request failed with status ${response.status}`
     throw new Error(message)
   }
 

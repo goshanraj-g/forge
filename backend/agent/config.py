@@ -2,6 +2,7 @@
 
 import os
 from dataclasses import dataclass
+from math import isfinite
 
 from pydantic_ai.models import Model
 from pydantic_ai.models.openai import OpenAIResponsesModel
@@ -21,9 +22,17 @@ class AgentSettings:
         if not os.getenv("OPENAI_API_KEY"):
             raise RuntimeError("OPENAI_API_KEY is not configured")
 
-        timeout_seconds = float(os.getenv("FORGEOPS_AGENT_TIMEOUT_SECONDS", "30"))
-        if timeout_seconds <= 0:
-            raise RuntimeError("FORGEOPS_AGENT_TIMEOUT_SECONDS must be positive")
+        timeout_value = os.getenv("FORGEOPS_AGENT_TIMEOUT_SECONDS", "30")
+        try:
+            timeout_seconds = float(timeout_value)
+        except ValueError as error:
+            raise RuntimeError(
+                "FORGEOPS_AGENT_TIMEOUT_SECONDS must be a number"
+            ) from error
+        if not isfinite(timeout_seconds) or timeout_seconds <= 0:
+            raise RuntimeError(
+                "FORGEOPS_AGENT_TIMEOUT_SECONDS must be finite and positive"
+            )
 
         return cls(model_name=model_name, timeout_seconds=timeout_seconds)
 
