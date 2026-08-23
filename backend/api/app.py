@@ -9,7 +9,12 @@ from pydantic import BaseModel
 from backend.agent.models import AgentDecisionRecord
 from backend.agent.observability import configure_agent_observability
 from backend.agent.service import investigate_event
-from backend.api.dependencies import ActiveSimulator, AgentModel, LockedSimulator
+from backend.api.dependencies import (
+    ActiveSimulator,
+    AgentModel,
+    LockedSimulator,
+    get_investigation_snapshot,
+)
 from backend.api.schemas import (
     CommitScheduleRequest,
     CommitScheduleResponse,
@@ -129,22 +134,14 @@ def schedule_factory_event(
     response_model=AgentDecisionRecord,
 )
 async def investigate_factory_event(
-    simulator: ActiveSimulator,
+    name: str,
     model: AgentModel,
     request: InvestigateEventRequest,
 ) -> AgentDecisionRecord:
-    event = next(
-        (event for event in simulator.log if event.id == request.event_id),
-        None,
-    )
-    if event is None:
-        raise HTTPException(
-            status_code=404,
-            detail=f"processed event {request.event_id!r} was not found",
-        )
+    state, event = get_investigation_snapshot(name, request.event_id)
 
     return await investigate_event(
-        simulator.state,
+        state,
         event,
         model,
     )
