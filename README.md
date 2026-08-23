@@ -14,7 +14,12 @@ The project separates four jobs that are easy to blur together:
 The agent cannot change factory state directly. Candidate schedules are checked
 by deterministic validation before they can be committed.
 
-## Project planning
+
+## System Architecture
+
+<img width="841" height="1203" alt="Event-Driven Factory-2026-08-23-214954" src="https://github.com/user-attachments/assets/90f3669c-9d1f-40c8-a170-f2a76c7118d4" />
+
+## Project Planning
 
 The [system design](docs/design.md) describes the component boundaries, failure
 handling, evaluation plan, and the completion criteria for each stage.
