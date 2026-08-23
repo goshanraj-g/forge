@@ -52,3 +52,14 @@ export interface SimulationResponse {
   state: FactoryState
   events: FactoryEvent[]
 }
+
+export interface MachineFailureEvent extends FactoryEvent {
+  type: 'machine_failure'
+  machine_id: string
+  duration_hours: number
+}
+
+export interface EventScheduledResponse {
+  event: MachineFailureEvent
+  pending_event_count: number
+}

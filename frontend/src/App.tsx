@@ -12,7 +12,9 @@ import {
   Settings,
   TriangleAlert,
 } from 'lucide-react'
+import { useState } from 'react'
 
+import { IncidentDialog } from './components/IncidentDialog'
 import { getFactory, tickFactory } from './lib/api'
 import type { FactoryState, MachineStatus } from './types/factory'
 
@@ -30,6 +32,8 @@ const navigation = [
 ]
 
 function App() {
+  const [incidentOpen, setIncidentOpen] = useState(false)
+  const [eventNotice, setEventNotice] = useState<string | null>(null)
   const queryClient = useQueryClient()
   const factoryQuery = useQuery({
     queryKey: ['factory', FACTORY_NAME],
@@ -251,12 +255,33 @@ function App() {
             </section>
           </Grid>
 
+          {eventNotice && <Text className="event-notice">{eventNotice}</Text>}
+
           <Flex className="activity-bar">
-            <Text className="eyebrow"><Activity size={13} /> System activity</Text>
-            <Text>{unavailable.length ? `${unavailable.length} production lines require attention` : 'No active incidents. Factory state is healthy.'}</Text>
+            <Box>
+              <Text className="eyebrow"><Activity size={13} /> System activity</Text>
+              <Text>{unavailable.length ? `${unavailable.length} production lines require attention` : 'No active incidents. Factory state is healthy.'}</Text>
+            </Box>
+            <Button size="sm" variant="outline" onClick={() => setIncidentOpen(true)}>
+              <TriangleAlert size={14} /> Inject failure
+            </Button>
           </Flex>
         </Box>
       </Box>
+      {incidentOpen && (
+        <IncidentDialog
+          factoryName={FACTORY_NAME}
+          machines={machines}
+          currentHour={state.sim_hour}
+          onClose={() => setIncidentOpen(false)}
+          onScheduled={(result) => {
+            setIncidentOpen(false)
+            setEventNotice(
+              `${result.event.machine_id} failure scheduled for hour ${result.event.sim_hour.toFixed(2)} · ${result.pending_event_count} pending event${result.pending_event_count === 1 ? '' : 's'}`,
+            )
+          }}
+        />
+      )}
     </Grid>
   )
 }

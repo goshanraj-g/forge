@@ -1,4 +1,8 @@
-import type { FactoryState, SimulationResponse } from '../types/factory'
+import type {
+  EventScheduledResponse,
+  FactoryState,
+  SimulationResponse,
+} from '../types/factory'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api'
 
@@ -36,5 +40,24 @@ export function tickFactory(
   return request(`/factories/${name}/tick`, {
     method: 'POST',
     body: JSON.stringify({ step_hours: stepHours }),
+  })
+}
+
+export function scheduleMachineFailure(
+  name: string,
+  input: {
+    machineId: string
+    simHour: number
+    durationHours: number
+  },
+): Promise<EventScheduledResponse> {
+  return request(`/factories/${name}/events`, {
+    method: 'POST',
+    body: JSON.stringify({
+      type: 'machine_failure',
+      sim_hour: input.simHour,
+      machine_id: input.machineId,
+      duration_hours: input.durationHours,
+    }),
   })
 }
