@@ -34,6 +34,8 @@ class FactoryState(BaseModel):
     overtime_hours: float = 0.0
     changeover_hours: float = 0.0
     production_cost: float = 0.0
+    overtime_cost: float = 0.0
+    changeover_cost: float = 0.0
     late_penalty_cost: float = 0.0
 
     def machine_list(self) -> list[Machine]:
@@ -63,9 +65,21 @@ class FactoryState(BaseModel):
     def jobs_for_machine(self, machine_id: str) -> list[ProductionJob]:
         return [job for job in self.job_list() if job.machine_id == machine_id]
 
-    def total_cost(self) -> float:
+    def controllable_cost(self) -> float:
+        """Return the cost a different schedule could have avoided.
+
+        Production cost is the cost of goods: it follows demand rather than
+        sequencing, so counting it rewards a schedule that simply builds less.
+        """
         return round(
-            self.production_cost + self.late_penalty_cost,
+            self.late_penalty_cost + self.overtime_cost + self.changeover_cost,
+            6,
+        )
+
+    def total_cost(self) -> float:
+        """Return every cost the simulation charged, including cost of goods."""
+        return round(
+            self.production_cost + self.controllable_cost(),
             6,
         )
 

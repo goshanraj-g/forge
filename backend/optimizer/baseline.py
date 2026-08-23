@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from math import ceil
 
 from backend.optimizer.models import (
     OptimizeRequest,
@@ -69,7 +70,9 @@ def build_baseline_schedule(
             )
             continue
 
-        quantity = int(order.remaining)
+        # Units are indivisible, and truncating float dust off a replanned
+        # remainder would strand the order permanently short of complete.
+        quantity = ceil(order.remaining)
         if quantity <= 0:
             continue
 
@@ -78,6 +81,7 @@ def build_baseline_schedule(
             machine_plans,
             product,
             quantity,
+            options.bucket_hours,
         )
         inventory_ready_hour = _inventory_ready_hour(
             state,
@@ -95,7 +99,13 @@ def build_baseline_schedule(
         start_hour = inventory_ready_hour
 
         changeover = _changeover_hours(machine, machine_plans[machine.id], product)
-        end_hour = q(start_hour + changeover + quantity / machine.capacity_per_hour)
+        end_hour = _job_end_hour(
+            start_hour,
+            changeover,
+            quantity,
+            machine,
+            options.bucket_hours,
+        )
         if end_hour > horizon_end:
             unscheduled.append(_unscheduled(order, UnscheduledReason.OUTSIDE_HORIZON))
             continue
@@ -135,6 +145,25 @@ def build_baseline_schedule(
     return result
 
 
+def _job_end_hour(
+    start_hour: float,
+    changeover_hours: float,
+    quantity: int,
+    machine: Machine,
+    bucket_hours: float,
+) -> float:
+    """Return an executable job window, rounded up with one bucket of headroom.
+
+    A window sized to exactly ``changeover + quantity / capacity`` cannot be
+    executed. The engine produces in whole ticks and treats a window as
+    half-open, so the tick landing on ``end_hour`` never runs, and the tick in
+    which a changeover completes produces nothing. Both losses are bounded by
+    one bucket, so reserving one extra bucket keeps the plan achievable.
+    """
+    required = changeover_hours + quantity / machine.capacity_per_hour
+    return q(start_hour + (ceil(required / bucket_hours) + 1) * bucket_hours)
+
+
 def _can_schedule(machine: Machine) -> bool:
     return machine.status != MachineStatus.MAINTENANCE and not (
         machine.status == MachineStatus.DOWN and machine.down_until_hour is None
@@ -163,14 +192,17 @@ def _choose_machine(
     plans: dict[str, _MachinePlan],
     product: Product,
     quantity: int,
+    bucket_hours: float,
 ) -> tuple[Machine, float, float]:
     choices = []
     for machine in machines:
         plan = plans[machine.id]
-        end = q(
-            plan.available_hour
-            + _changeover_hours(machine, plan, product)
-            + quantity / machine.capacity_per_hour
+        end = _job_end_hour(
+            plan.available_hour,
+            _changeover_hours(machine, plan, product),
+            quantity,
+            machine,
+            bucket_hours,
         )
         choices.append((end, plan.available_hour, machine.id, machine))
     end, start, _, machine = min(choices, key=lambda choice: choice[:3])

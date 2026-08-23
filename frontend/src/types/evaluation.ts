@@ -1,10 +1,16 @@
 export interface EvaluationMetrics {
   late_orders: number
   priority_weighted_lateness: number
-  production_cost: number
+  unmet_demand_units: number
   penalty_cost: number
+  overtime_cost: number
+  changeover_cost: number
+  /** Penalty + overtime + changeover: the cost a different schedule could avoid. */
+  controllable_cost: number
+  production_cost: number
   total_cost: number
   overtime_hours: number
+  changeover_hours: number
   constraint_violations: number
   replans: number
   model_calls: number

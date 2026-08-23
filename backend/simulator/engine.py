@@ -315,8 +315,8 @@ class FactorySimulator:
                 self.state.changeover_hours = q(
                     self.state.changeover_hours + changeover,
                 )
-                self.state.production_cost = q(
-                    self.state.production_cost + changeover * CHANGEOVER_COST_PER_HOUR,
+                self.state.changeover_cost = q(
+                    self.state.changeover_cost + changeover * CHANGEOVER_COST_PER_HOUR,
                 )
 
                 if machine.changeover_remaining_hours == 0:
@@ -357,8 +357,8 @@ class FactorySimulator:
                 self.state.overtime_hours = q(
                     self.state.overtime_hours + worked,
                 )
-                self.state.production_cost = q(
-                    self.state.production_cost + worked * OVERTIME_COST_PER_HOUR,
+                self.state.overtime_cost = q(
+                    self.state.overtime_cost + worked * OVERTIME_COST_PER_HOUR,
                 )
 
     def _settle_orders(self) -> None:

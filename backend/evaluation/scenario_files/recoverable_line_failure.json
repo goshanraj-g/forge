@@ -1,0 +1,18 @@
+{
+  "id": "recoverable-line-failure",
+  "description": "The finishing line fails for 20 hours mid-run while two motor orders are committed to it. Both products can also run on the assembly lines, so a replan has somewhere to move the work and a no-op does not.",
+  "factory_name": "factory_01",
+  "horizon_hour": 30,
+  "step_hours": 0.25,
+  "order_ids": ["ORD-001", "ORD-003"],
+  "events": [
+    {
+      "id": "eval-recoverable-001",
+      "sim_hour": 2,
+      "type": "machine_failure",
+      "machine_id": "M5",
+      "duration_hours": 20
+    }
+  ],
+  "oracle_replan_event_ids": ["eval-recoverable-001"]
+}

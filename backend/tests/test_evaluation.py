@@ -1,3 +1,4 @@
+from collections import defaultdict
 from pathlib import Path
 
 import pytest
@@ -117,9 +118,36 @@ def test_metrics_measure_lateness_and_cost_from_final_state() -> None:
     assert result.metrics.late_orders == 1
     assert result.metrics.priority_weighted_lateness == 12
     assert result.metrics.penalty_cost == 1080
-    assert result.metrics.total_cost == pytest.approx(
-        result.metrics.production_cost + result.metrics.penalty_cost
+    assert result.metrics.controllable_cost == pytest.approx(
+        result.metrics.penalty_cost
+        + result.metrics.overtime_cost
+        + result.metrics.changeover_cost
     )
+    assert result.metrics.total_cost == pytest.approx(
+        result.metrics.production_cost + result.metrics.controllable_cost
+    )
+
+
+def test_controllable_cost_excludes_cost_of_goods() -> None:
+    """A run that builds less must not look cheaper on the comparison metric."""
+    idle = run_scenario(
+        _scenario(
+            events=[
+                MachineFailureEvent(
+                    id="event-001",
+                    sim_hour=1,
+                    machine_id="M5",
+                    duration_hours=60,
+                )
+            ]
+        ),
+        NoOpPolicy(),
+    )
+    working = run_scenario(_scenario(), NoOpPolicy())
+
+    assert idle.metrics.production_cost < working.metrics.production_cost
+    assert idle.metrics.unmet_demand_units > working.metrics.unmet_demand_units
+    assert idle.metrics.controllable_cost > working.metrics.controllable_cost
 
 
 def test_oracle_uses_scenario_ground_truth() -> None:
@@ -168,3 +196,29 @@ def test_cli_prints_header_when_no_scenarios_exist(
     output = capsys.readouterr().out
     assert "scenario" in output
     assert "policy" in output
+
+
+def test_scenario_suite_separates_the_baseline_policies() -> None:
+    """The suite must be able to tell the baselines apart in both directions.
+
+    A comparison table where every row ties measures nothing, so the suite has
+    to contain at least one scenario replanning clearly wins and one it clearly
+    loses. Without both, an agent policy has no target to beat.
+    """
+    by_scenario: dict[str, dict[str, float]] = defaultdict(dict)
+    for result in compare_baselines(load_scenarios()):
+        by_scenario[result.scenario_id][result.policy_name] = (
+            result.metrics.controllable_cost
+        )
+
+    assert any(
+        costs["always-replan"] < costs["no-op"] for costs in by_scenario.values()
+    ), "no scenario rewards replanning"
+    assert any(
+        costs["always-replan"] > costs["no-op"] for costs in by_scenario.values()
+    ), "no scenario punishes replanning indiscriminately"
+
+    # Ground truth should never be beaten by either fixed policy.
+    for scenario_id, costs in by_scenario.items():
+        assert costs["oracle"] <= costs["no-op"] + 1e-6, scenario_id
+        assert costs["oracle"] <= costs["always-replan"] + 1e-6, scenario_id
