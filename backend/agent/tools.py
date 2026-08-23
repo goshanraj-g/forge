@@ -3,15 +3,29 @@
 from pydantic_ai import RunContext
 
 from backend.agent.dependencies import AgentDependencies
+from backend.agent.models import FactoryClock
 from backend.optimizer.models import OptimizeRequest, ScheduleResult
 from backend.optimizer.solver import optimize_schedule
 from backend.simulator.models import (
     InventoryItem,
     Machine,
     Order,
+    Product,
     ProductionJob,
     Shipment,
 )
+
+
+def get_factory_clock(
+    ctx: RunContext[AgentDependencies],
+) -> FactoryClock:
+    """Return the factory's current simulation time and schedule version."""
+    state = ctx.deps.state
+    return FactoryClock(
+        factory_name=state.name,
+        sim_hour=state.sim_hour,
+        schedule_version=state.schedule_version,
+    )
 
 
 def list_machines(
@@ -24,6 +38,13 @@ def list_open_orders(
     ctx: RunContext[AgentDependencies],
 ) -> list[Order]:
     return ctx.deps.state.open_orders()
+
+
+def list_products(
+    ctx: RunContext[AgentDependencies],
+) -> list[Product]:
+    """Return product definitions, families, and bills of material."""
+    return ctx.deps.state.product_list()
 
 
 def list_inventory(

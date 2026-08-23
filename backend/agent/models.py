@@ -21,6 +21,12 @@ class DecisionStatus(StrEnum):
     ESCALATE = "escalate"
 
 
+class FactoryClock(BaseModel):
+    factory_name: str
+    sim_hour: float
+    schedule_version: int
+
+
 class AgentDecision(BaseModel):
     status: DecisionStatus
     severity: DecisionSeverity
@@ -36,11 +42,16 @@ class AgentDecision(BaseModel):
 
     @model_validator(mode="after")
     def validate_consistency(self) -> Self:
-        if self.status == DecisionStatus.NO_ACTION and self.should_replan:
-            raise ValueError("a no_action decision cannot request replanning")
+        should_replan = self.status == DecisionStatus.REPLAN_RECOMMENDED
+        if self.should_replan != should_replan:
+            raise ValueError("should_replan must be true only for replan_recommended")
 
-        if self.status == DecisionStatus.REPLAN_RECOMMENDED and not self.should_replan:
-            raise ValueError("a replan_recommended decision must request replanning")
+        approval_required = self.status in (
+            DecisionStatus.REPLAN_RECOMMENDED,
+            DecisionStatus.ESCALATE,
+        )
+        if self.requires_human_approval != approval_required:
+            raise ValueError("replanning and escalation require human approval")
 
         if (
             self.status == DecisionStatus.NEEDS_INFORMATION

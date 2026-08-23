@@ -24,6 +24,7 @@ def test_accepts_consistent_replan_decision() -> None:
         status=DecisionStatus.REPLAN_RECOMMENDED,
         severity=DecisionSeverity.HIGH,
         should_replan=True,
+        requires_human_approval=True,
         affected_order_ids=["ORD-001"],
     )
 
@@ -31,13 +32,29 @@ def test_accepts_consistent_replan_decision() -> None:
 
 
 def test_no_action_cannot_request_replanning() -> None:
-    with pytest.raises(ValidationError, match="no_action"):
+    with pytest.raises(ValidationError, match="should_replan"):
         decision(should_replan=True)
 
 
 def test_replan_status_must_request_replanning() -> None:
-    with pytest.raises(ValidationError, match="replan_recommended"):
-        decision(status=DecisionStatus.REPLAN_RECOMMENDED)
+    with pytest.raises(ValidationError, match="should_replan"):
+        decision(
+            status=DecisionStatus.REPLAN_RECOMMENDED,
+            requires_human_approval=True,
+        )
+
+
+def test_replan_requires_human_approval() -> None:
+    with pytest.raises(ValidationError, match="human approval"):
+        decision(
+            status=DecisionStatus.REPLAN_RECOMMENDED,
+            should_replan=True,
+        )
+
+
+def test_escalation_requires_human_approval() -> None:
+    with pytest.raises(ValidationError, match="human approval"):
+        decision(status=DecisionStatus.ESCALATE)
 
 
 def test_needs_information_must_name_missing_information() -> None:
