@@ -10,6 +10,7 @@ from pydantic_ai.models.openai import OpenAIResponsesModel
 @dataclass(frozen=True)
 class AgentSettings:
     model_name: str
+    timeout_seconds: float = 30.0
 
     @classmethod
     def from_environment(cls) -> "AgentSettings":
@@ -20,7 +21,11 @@ class AgentSettings:
         if not os.getenv("OPENAI_API_KEY"):
             raise RuntimeError("OPENAI_API_KEY is not configured")
 
-        return cls(model_name=model_name)
+        timeout_seconds = float(os.getenv("FORGEOPS_AGENT_TIMEOUT_SECONDS", "30"))
+        if timeout_seconds <= 0:
+            raise RuntimeError("FORGEOPS_AGENT_TIMEOUT_SECONDS must be positive")
+
+        return cls(model_name=model_name, timeout_seconds=timeout_seconds)
 
 
 def build_production_model(

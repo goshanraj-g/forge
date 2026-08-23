@@ -2,7 +2,7 @@
 
 from pydantic_ai.models import Model
 
-from backend.agent.decision_agent import decision_agent
+from backend.agent.decision_agent import PROMPT_VERSION, decision_agent
 from backend.agent.dependencies import AgentDependencies
 from backend.agent.models import AgentDecision, AgentDecisionRecord
 from backend.simulator.events import BaseEvent
@@ -50,5 +50,7 @@ async def investigate_event(
         state_snapshot_hash=snapshot_hash,
         trigger_event_id=event.id,
         trigger_event_type=str(event.type),
+        prompt_version=PROMPT_VERSION,
+        model_name=str(getattr(model, "model_name", type(model).__name__)),
         decision=decision,
     )

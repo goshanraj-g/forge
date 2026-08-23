@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import random
+from copy import deepcopy
 from dataclasses import dataclass, field
 
 from backend.simulator import events as ev
@@ -85,6 +86,18 @@ class FactorySimulator:
         self.pending = ev.sort_events(list(pending_events or []))
         self.log: list[ev.BaseEvent] = []
         self._low_inventory_components: set[str] = set()
+
+    def clone(self) -> FactorySimulator:
+        """Return an isolated simulator copy for transactional mutations."""
+        return deepcopy(self)
+
+    def replace_with(self, other: FactorySimulator) -> None:
+        """Publish a fully persisted simulator copy as the active state."""
+        self.state = other.state
+        self.context = other.context
+        self.pending = other.pending
+        self.log = other.log
+        self._low_inventory_components = other._low_inventory_components.copy()
 
     def schedule(self, event: ev.BaseEvent) -> None:
         """Schedule an event for a future simulation time"""

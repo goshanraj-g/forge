@@ -83,6 +83,22 @@ jobs:
   test:
     name: Tests (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: forgeops
+          POSTGRES_USER: forgeops
+          POSTGRES_PASSWORD: forgeops
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U forgeops"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql+psycopg://forgeops:forgeops@localhost:5432/forgeops
     strategy:
       fail-fast: false
       matrix:
@@ -98,6 +114,10 @@ jobs:
 
       - name: Install dependencies
         run: pip install -e '.[dev]'
+
+      - name: Verify database migrations
+        if: matrix.python-version == '3.12'
+        run: alembic upgrade head
 
       - name: Pytest
         run: pytest --cov --cov-report=term-missing --cov-report=xml

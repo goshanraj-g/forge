@@ -8,6 +8,8 @@ from pydantic_ai.models import Model
 
 from backend.agent.config import AgentSettings, build_production_model
 from backend.api.store import factory_store
+from backend.persistence.database import session_factory
+from backend.persistence.repository import Repository, SQLRepository
 from backend.simulator.engine import FactorySimulator
 from backend.simulator.events import BaseEvent
 from backend.simulator.state import FactoryState
@@ -71,6 +73,17 @@ def get_agent_model() -> Model:
     return build_production_model(settings)
 
 
+def get_agent_timeout() -> float:
+    try:
+        return AgentSettings.from_environment().timeout_seconds
+    except RuntimeError as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
+
+
+def get_repository() -> Repository:
+    return SQLRepository(session_factory)
+
+
 ActiveSimulator = Annotated[
     FactorySimulator,
     Depends(get_simulator),
@@ -84,4 +97,10 @@ LockedSimulator = Annotated[
 AgentModel = Annotated[
     Model,
     Depends(get_agent_model),
+]
+AgentTimeout = Annotated[float, Depends(get_agent_timeout)]
+
+PersistentRepository = Annotated[
+    Repository,
+    Depends(get_repository),
 ]

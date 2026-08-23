@@ -15,6 +15,8 @@ from backend.agent.tools import (
     propose_schedule,
 )
 
+PROMPT_VERSION = "1.0.0"
+
 SYSTEM_INSTRUCTIONS = """
 You are the decision agent for a factory operations simulator. A disruption has
 occurred. Investigate it with the read-only tools and return one AgentDecision.
