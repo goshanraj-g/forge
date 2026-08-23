@@ -1,6 +1,6 @@
-# ForgeOps
+# Forge
 
-ForgeOps is a factory scheduling demo; it models a production floor, introduces
+Forge is a factory scheduling demo; it models a production floor, introduces
 disruptions such as machine failures and late shipments, and measures whether
 replanning improves delivery performance and cost.
 
@@ -26,7 +26,7 @@ handling, evaluation plan, and the completion criteria for each stage.
 
 ## Local setup
 
-ForgeOps requires Python 3.11 or newer.
+Forge requires Python 3.11 or newer.
 
 ```bash
 python -m venv .venv
