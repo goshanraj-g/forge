@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
+from backend.evaluation import __main__ as evaluation_cli
 from backend.evaluation.models import EvaluationScenario
 from backend.evaluation.policies import AlwaysReplanPolicy, NoOpPolicy, OraclePolicy
 from backend.evaluation.runner import compare_baselines, run_scenario
@@ -154,3 +155,16 @@ def test_comparison_returns_every_scenario_policy_pair() -> None:
         "always-replan",
         "oracle",
     }
+
+
+def test_cli_prints_header_when_no_scenarios_exist(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(evaluation_cli, "load_scenarios", lambda: [])
+
+    evaluation_cli.main()
+
+    output = capsys.readouterr().out
+    assert "scenario" in output
+    assert "policy" in output

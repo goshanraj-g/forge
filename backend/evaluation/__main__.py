@@ -19,7 +19,7 @@ def main() -> None:
         for result in results
     ]
     widths = [
-        max(len(header), *(len(row[index]) for row in rows))
+        max([len(header), *(len(row[index]) for row in rows)])
         for index, header in enumerate(headers)
     ]
     print(

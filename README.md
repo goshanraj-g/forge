@@ -46,7 +46,7 @@ ruff check .          # lint
 ruff format --check . # formatting
 mypy                  # strict type checking
 pytest --cov          # tests and coverage
-python -m backend.evaluation # evaluation smoke test
+python -m backend.evaluation # evaluation smoke test (Python 3.12 CI job)
 ```
 
 Installing the pre-commit hooks runs the lint and format steps before each

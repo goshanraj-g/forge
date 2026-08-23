@@ -102,8 +102,8 @@ def run_scenario(
     schedule_versions: list[int] = []
     decisions: list[EvaluationDecisionTrace] = []
 
-    committed, found = _schedule(state, scheduler)
-    violations += found
+    committed, schedule_violations = _schedule(state, scheduler)
+    violations += schedule_violations
     if committed:
         schedule_versions.append(state.schedule_version)
 
@@ -122,8 +122,8 @@ def run_scenario(
         if should_replan:
             decision_event_ids.append(event.id)
             replans += 1
-            committed, found = _schedule(state, scheduler)
-            violations += found
+            committed, schedule_violations = _schedule(state, scheduler)
+            violations += schedule_violations
             if committed:
                 schedule_versions.append(state.schedule_version)
         decisions.append(
