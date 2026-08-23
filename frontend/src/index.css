@@ -1,23 +1,78 @@
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
 :root {
-  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
-  color: #17211b;
-  background: #f4f6f3;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #18231d;
+  background: #f3f5f1;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
 
-body {
-  margin: 0;
-  min-width: 320px;
+body { margin: 0; min-width: 320px; min-height: 100vh; }
+button { cursor: pointer; }
+
+.app-shell {
   min-height: 100vh;
+  background: radial-gradient(circle at 90% 0%, rgba(92, 135, 105, 0.11), transparent 28rem), #f3f5f1;
 }
 
-main {
-  padding: 2rem;
+.topbar {
+  height: 72px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 40px;
+  border-bottom: 1px solid #dfe5dd;
+  background: rgba(250, 251, 249, 0.92);
+  backdrop-filter: blur(12px);
+}
+
+.brand-mark { display: grid; width: 38px; height: 38px; place-items: center; color: #f5fff7; border-radius: 10px; background: #1e5434; }
+.brand-name, .row-title, .clock-value, .metric-value { color: #15231a; font-weight: 650; }
+.brand-name { font-size: 15px; letter-spacing: -0.01em; }
+.brand-subtitle, .row-detail, .metric-detail, .page-description, .panel-count, .priority { color: #6d786f; }
+.brand-subtitle { font-size: 12px; }
+
+.page { width: min(1320px, calc(100% - 48px)); margin: 0 auto; padding: 54px 0 72px; }
+.page-heading { align-items: flex-end; justify-content: space-between; gap: 32px; }
+.eyebrow { margin-bottom: 7px; color: #487057; font-size: 11px; font-weight: 700; letter-spacing: 0.13em; text-transform: uppercase; }
+.page-description { max-width: 580px; margin-top: 10px; font-size: 15px; }
+
+.clock-control { align-items: center; gap: 12px; padding: 12px 14px 12px 18px; border: 1px solid #dbe2d9; border-radius: 14px; background: #fff; box-shadow: 0 8px 24px rgba(38, 61, 45, 0.06); }
+.clock-control > div:first-child { min-width: 126px; }
+.clock-label { color: #718076; font-size: 11px; font-weight: 650; text-transform: uppercase; }
+.clock-value { margin-top: 2px; font-size: 18px; }
+
+.metrics-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-top: 36px; }
+.metric-card, .panel { border: 1px solid #dde4db; background: rgba(255, 255, 255, 0.9); box-shadow: 0 12px 32px rgba(39, 58, 44, 0.045); }
+.metric-card { padding: 21px 22px; border-radius: 14px; }
+.metric-value { font-size: 28px; letter-spacing: -0.04em; }
+.metric-detail { margin-top: 4px; font-size: 12px; }
+
+.content-grid { grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr); gap: 20px; margin-top: 20px; }
+.panel { overflow: hidden; border-radius: 16px; }
+.panel-heading { align-items: center; justify-content: space-between; padding: 22px 24px 18px; border-bottom: 1px solid #e5e9e3; }
+.panel-count { font-size: 12px; }
+.machine-row, .order-row { min-height: 72px; align-items: center; justify-content: space-between; gap: 20px; padding: 14px 24px; border-bottom: 1px solid #edf0eb; }
+.machine-row:last-child, .order-row:last-child { border-bottom: 0; }
+.row-title { font-size: 14px; }
+.row-detail, .priority { margin-top: 3px; font-size: 12px; }
+.due-hour { color: #334b3c; font-size: 13px; font-weight: 650; }
+
+.inline-error { margin-top: 16px; padding: 12px 14px; color: #8b2d2d; border: 1px solid #eccaca; border-radius: 10px; background: #fff3f3; }
+.center-state { min-height: 100vh; flex-direction: column; align-items: center; justify-content: center; gap: 12px; }
+.error-state { color: #7e2929; }
+
+@media (max-width: 900px) {
+  .topbar { padding: 0 20px; }
+  .page { width: min(100% - 32px, 700px); padding-top: 36px; }
+  .page-heading { align-items: stretch; flex-direction: column; }
+  .clock-control { flex-wrap: wrap; }
+  .metrics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .content-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 520px) {
+  .metrics-grid { grid-template-columns: 1fr; }
+  .clock-control > div:first-child { width: 100%; }
 }
