@@ -19,6 +19,9 @@ by deterministic validation before they can be committed.
 
 <img width="841" height="1203" alt="Event-Driven Factory-2026-08-23-214954" src="https://github.com/user-attachments/assets/90f3669c-9d1f-40c8-a170-f2a76c7118d4" />
 
+## Sequence Diagram
+<img width="819" height="781" alt="Event-Driven Factory-2026-08-23-235001" src="https://github.com/user-attachments/assets/b394fedb-22c9-47cf-ae57-0d7957485a74" />
+
 ## Project Planning
 
 The [system design](docs/design.md) describes the component boundaries, failure
