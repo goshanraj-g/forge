@@ -23,8 +23,10 @@ def load_scenarios(directory: Path = SCENARIO_DIRECTORY) -> list[EvaluationScena
 
 
 def scenario_hash(scenario: EvaluationScenario) -> str:
+    payload = scenario.model_dump(mode="json")
+    payload["oracle_replan_event_ids"] = sorted(scenario.oracle_replan_event_ids)
     canonical = json.dumps(
-        scenario.model_dump(mode="json"),
+        payload,
         sort_keys=True,
         separators=(",", ":"),
     )

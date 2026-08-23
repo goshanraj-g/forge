@@ -6,7 +6,7 @@ from pydantic import ValidationError
 from backend.evaluation.models import EvaluationScenario
 from backend.evaluation.policies import AlwaysReplanPolicy, NoOpPolicy, OraclePolicy
 from backend.evaluation.runner import compare_baselines, run_scenario
-from backend.evaluation.scenarios import load_scenario, load_scenarios
+from backend.evaluation.scenarios import load_scenario, load_scenarios, scenario_hash
 from backend.simulator.events import MachineFailureEvent
 
 
@@ -53,6 +53,33 @@ def test_load_scenario_rejects_invalid_event_stream(tmp_path: Path) -> None:
 def test_scenario_rejects_unknown_oracle_event() -> None:
     with pytest.raises(ValidationError, match="oracle replan ids do not exist"):
         _scenario(oracle_replan_event_ids={"unknown-event"})
+
+
+def test_scenario_hash_normalizes_oracle_event_order() -> None:
+    events = [
+        MachineFailureEvent(
+            id="event-001",
+            sim_hour=4,
+            machine_id="M4",
+            duration_hours=2,
+        ),
+        MachineFailureEvent(
+            id="event-002",
+            sim_hour=8,
+            machine_id="M3",
+            duration_hours=2,
+        ),
+    ]
+    first = _scenario(
+        events=events,
+        oracle_replan_event_ids=["event-001", "event-002"],
+    )
+    second = _scenario(
+        events=events,
+        oracle_replan_event_ids=["event-002", "event-001"],
+    )
+
+    assert scenario_hash(first) == scenario_hash(second)
 
 
 def test_policy_metrics_count_decisions_and_successful_replans() -> None:
