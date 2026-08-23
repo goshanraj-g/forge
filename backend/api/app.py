@@ -1,12 +1,15 @@
 """FastAPI application"""
 
 import asyncio
+import math
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import NoReturn
+from typing import Any, NoReturn
 
 import structlog
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from backend.agent.models import AgentDecisionRecord
@@ -62,6 +65,32 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+
+
+def _sanitize_non_finite(value: Any) -> Any:
+    """Replace inf/nan with their repr so the error body stays JSON-safe.
+
+    Starlette's JSONResponse serializes with allow_nan=False, so echoing a
+    rejected non-finite input (e.g. from `1e999`) back in the 422 body would
+    otherwise crash the response encoder and surface as a 500.
+    """
+    if isinstance(value, float) and not math.isfinite(value):
+        return str(value)
+    if isinstance(value, dict):
+        return {key: _sanitize_non_finite(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_sanitize_non_finite(item) for item in value]
+    return value
+
+
+@app.exception_handler(RequestValidationError)
+async def _handle_validation_error(
+    _: Request, exc: RequestValidationError
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=422,
+        content={"detail": _sanitize_non_finite(exc.errors())},
+    )
 
 
 def _persistence_unavailable(error: Exception) -> NoReturn:
