@@ -5,6 +5,7 @@ from pydantic_ai.models import Model
 from backend.agent.decision_agent import decision_agent
 from backend.agent.dependencies import AgentDependencies
 from backend.agent.models import AgentDecision, AgentDecisionRecord
+from backend.simulator.events import BaseEvent
 from backend.simulator.state import FactoryState
 
 
@@ -29,8 +30,8 @@ async def investigate_event(
     event: BaseEvent,
     model: Model,
 ) -> AgentDecisionRecord:
-    snapshot_hash = state.snapshot_hash
-    
+    snapshot_hash = state.snapshot_hash()
+
     prompt = (
         "Investigate this factory event and determine the appropriate response.\n"
         f"Event: {event.model_dump_json()}"

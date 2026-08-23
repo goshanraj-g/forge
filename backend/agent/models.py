@@ -51,8 +51,8 @@ class AgentDecision(BaseModel):
             )
 
         return self
-    
-    
+
+
 class AgentDecisionRecord(BaseModel):
     factory_name: str
     simulation_hour: float
