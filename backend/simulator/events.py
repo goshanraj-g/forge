@@ -104,6 +104,12 @@ FactoryEvent = Annotated[
 ]
 
 
+InjectableEvent = Annotated[
+    (MachineFailureEvent | MachineRepairEvent | SupplierDelayEvent | UrgentOrderEvent),
+    Field(discriminator="type"),
+]
+
+
 INJECTABLE_EVENT_TYPES = (
     EventType.MACHINE_FAILURE,
     EventType.MACHINE_REPAIR,
