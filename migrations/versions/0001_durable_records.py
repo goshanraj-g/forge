@@ -5,6 +5,7 @@ Revises:
 """
 
 from collections.abc import Sequence
+from typing import Any
 
 import sqlalchemy as sa
 from alembic import op
@@ -17,7 +18,7 @@ branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
 
-def _record_columns() -> list[sa.Column[object]]:
+def _record_columns() -> list[sa.Column[Any]]:
     return [
         sa.Column("id", sa.String(), primary_key=True),
         sa.Column(
