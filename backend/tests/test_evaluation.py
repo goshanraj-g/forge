@@ -11,6 +11,7 @@ from backend.agent.models import (
     DecisionStatus,
 )
 from backend.evaluation import __main__ as evaluation_cli
+from backend.evaluation import runner
 from backend.evaluation.models import EvaluationScenario
 from backend.evaluation.policies import (
     AgentPolicy,
@@ -24,6 +25,12 @@ from backend.evaluation.runner import (
     run_scenario,
 )
 from backend.evaluation.scenarios import load_scenario, load_scenarios, scenario_hash
+from backend.optimizer.models import (
+    OptimizeRequest,
+    ScheduleResult,
+    ScheduleStatus,
+    ValidationResult,
+)
 from backend.simulator.events import BaseEvent, MachineFailureEvent
 from backend.simulator.state import FactoryState
 
@@ -232,6 +239,86 @@ def test_agent_comparison_includes_agent_and_cp_sat_baselines() -> None:
     }
     agent = next(result for result in results if result.policy_name == "agent")
     assert agent.metrics.model_calls == 1
+
+
+def test_initial_schedule_retries_a_cut_off_search_with_a_longer_budget(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    budgets: list[float | None] = []
+    committable = ScheduleResult(
+        status=ScheduleStatus.OPTIMAL,
+        validation=ValidationResult(),
+    )
+
+    def scheduler(
+        state: FactoryState,
+        request: OptimizeRequest | None = None,
+    ) -> ScheduleResult:
+        budgets.append(None if request is None else request.deterministic_time_limit)
+        if len(budgets) == 1:
+            return ScheduleResult(
+                status=ScheduleStatus.UNKNOWN,
+                solve_seconds=60.0,
+                time_limit_seconds=60.0,
+            )
+        return committable
+
+    monkeypatch.setattr(runner, "evaluation_scheduler", scheduler)
+
+    result = runner._initial_cp_sat_schedule(_scenario())
+
+    assert result is committable
+    assert budgets == [None, runner.RETRY_DETERMINISTIC_BUDGET]
+
+
+def test_initial_schedule_reports_an_unsolvable_scenario_with_diagnostics(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        runner,
+        "evaluation_scheduler",
+        lambda state, request=None: ScheduleResult(
+            status=ScheduleStatus.INFEASIBLE,
+            solve_seconds=2.5,
+            time_limit_seconds=60.0,
+        ),
+    )
+
+    with pytest.raises(runner.InitialScheduleUnavailable) as caught:
+        runner._initial_cp_sat_schedule(_scenario())
+
+    assert caught.value.scenario_id == "test-scenario"
+    assert "status=infeasible" in str(caught.value)
+    assert "solve_seconds=2.5" in str(caught.value)
+
+
+def test_events_marked_material_actually_disrupt_committed_work() -> None:
+    """A scenario claiming a replan is warranted has to really lose work to it.
+
+    assembly-line-failure used to fail M1, which the optimizer never scheduled
+    anything on, so it silently became a copy of the deliberately inert
+    unrelated-line-failure: same costs, same state hashes, nothing measured.
+    """
+    for scenario in load_scenarios():
+        schedule = runner._initial_cp_sat_schedule(scenario)
+        for event in scenario.events:
+            machine_id = getattr(event, "machine_id", None)
+            if event.id not in scenario.oracle_replan_event_ids or machine_id is None:
+                continue
+
+            failure_end = event.sim_hour + getattr(event, "duration_hours", 0.0)
+            disrupted = [
+                job
+                for job in schedule.jobs
+                if job.machine_id == machine_id
+                and job.start_hour < failure_end
+                and job.end_hour > event.sim_hour
+            ]
+
+            assert disrupted, (
+                f"{scenario.id}: {event.id} is listed as an oracle replan, but "
+                f"{machine_id} holds no committed work at hour {event.sim_hour}"
+            )
 
 
 def test_runs_are_isolated_and_repeatable() -> None:

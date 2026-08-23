@@ -88,6 +88,10 @@ export function getFactory(name: string): Promise<FactoryState> {
   return request(`/factories/${name}`)
 }
 
+export function resetFactory(name: string): Promise<FactoryState> {
+  return request(`/factories/${name}/reset`, { method: 'POST' })
+}
+
 export function tickFactory(
   name: string,
   stepHours: number,

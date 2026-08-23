@@ -51,9 +51,9 @@ export function IncidentDialog({
       >
         <Flex className="dialog-header">
           <Box>
-            <Text className="eyebrow">Simulation event</Text>
+            <Text className="eyebrow">Test simulation event</Text>
             <Heading id="incident-title" className="dialog-title">
-              Inject machine failure
+              Schedule a machine failure
             </Heading>
           </Box>
           <Button variant="ghost" size="sm" aria-label="Close" onClick={onClose}>
@@ -97,7 +97,7 @@ export function IncidentDialog({
 
           <Flex className="dialog-actions">
             <Button variant="outline" size="sm" type="button" onClick={onClose}>Cancel</Button>
-            <Button className="danger-button" size="sm" type="submit" loading={mutation.isPending}>Schedule failure</Button>
+            <Button className="danger-button" size="sm" type="submit" loading={mutation.isPending}>Add test failure</Button>
           </Flex>
         </form>
       </Box>

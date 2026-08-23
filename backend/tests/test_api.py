@@ -6,6 +6,8 @@ from pydantic_ai.models.test import TestModel
 from backend.api.app import app
 from backend.api.dependencies import get_agent_model, get_agent_timeout, get_repository
 from backend.api.store import factory_store
+from backend.evaluation.runner import InitialScheduleUnavailable
+from backend.optimizer.models import ScheduleResult, ScheduleStatus
 from backend.persistence.repository import PersistenceBatch
 from backend.simulator.events import MachineFailureEvent
 from backend.simulator.models import Machine, Order, Product, ProductionJob
@@ -88,6 +90,23 @@ def test_tick_advances_factory_clock() -> None:
 
     assert response.status_code == 200
     assert response.json()["state"]["sim_hour"] == 0.5
+
+
+def test_reset_factory_restores_seed_state_and_persists_snapshot() -> None:
+    factory_store.clear()
+    simulator = factory_store.get("factory_01")
+    simulator.tick(1)
+    test_repository.batches.clear()
+
+    response = client.post("/factories/factory_01/reset")
+
+    assert response.status_code == 200
+    assert response.json()["sim_hour"] == 0
+    assert simulator.state.sim_hour == 0
+    assert simulator.pending == []
+    assert simulator.log == []
+    assert test_repository.batches[-1].state is simulator.state
+    assert test_repository.batches[-1].reset_factory is True
 
 
 def test_tick_does_not_publish_state_when_persistence_fails() -> None:
@@ -397,6 +416,24 @@ def test_evaluations_returns_every_policy_for_every_scenario() -> None:
     assert all(
         policies == expected_policies for policies in policies_by_scenario.values()
     )
+
+
+def test_evaluations_report_an_unsolvable_scenario_as_unavailable() -> None:
+    failed = ScheduleResult(
+        status=ScheduleStatus.UNKNOWN,
+        solve_seconds=240.0,
+        time_limit_seconds=240.0,
+    )
+
+    def unsolvable(*_: object) -> list[object]:
+        raise InitialScheduleUnavailable("recoverable-line-failure", failed)
+
+    with patch("backend.api.app.compare_baselines", unsolvable):
+        response = client.get("/evaluations")
+
+    assert response.status_code == 503
+    assert "recoverable-line-failure" in response.json()["detail"]
+    assert "status=unknown" in response.json()["detail"]
 
 
 def test_evaluations_are_repeatable_across_requests() -> None:

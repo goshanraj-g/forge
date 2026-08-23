@@ -30,7 +30,7 @@ export function IncidentsRoute() {
     <>
       <PageTitle
         title="Incidents"
-        sub="Disruptions on the floor, and the agent's reading of what they cost you."
+        sub="Track line outages, recovery times, and the AI agent's recommended response."
       />
 
       <Grid className="stat-strip">
@@ -40,8 +40,8 @@ export function IncidentsRoute() {
           note={`of ${machines.length} production lines`}
         />
         <Stat
-          label="Next recovery"
-          value={Number.isFinite(nextRecovery) ? `${nextRecovery.toFixed(1)}h` : '—'}
+          label="Next line returns"
+          value={Number.isFinite(nextRecovery) ? `H${nextRecovery.toFixed(1)}` : '—'}
           note={
             recovering.length
               ? `${recovering.length} recovering`
@@ -49,12 +49,12 @@ export function IncidentsRoute() {
           }
         />
         <Stat
-          label="Events this session"
+          label="Simulation events"
           value={String(events.length)}
           note={`sim hour ${state.sim_hour.toFixed(2)}`}
         />
         <Stat
-          label="Late penalty"
+          label="Cost from late orders"
           value={`$${state.late_penalty_cost.toLocaleString()}`}
           note="recorded so far"
         />
@@ -69,15 +69,15 @@ export function IncidentsRoute() {
         />
         {unavailable.length === 0 ? (
           <Box className="empty-panel">
-            Every production line is running or idle. Inject a failure below to see how
-            the agent responds.
+            Every production line is available. Add a test failure below to see how the
+            AI agent responds.
           </Box>
         ) : (
           <>
             <Box className="table-header machine-columns">
               <Text>Machine</Text>
               <Text>Throughput</Text>
-              <Text>Returns</Text>
+              <Text>Returns at hour</Text>
               <Text>Status</Text>
             </Box>
             {unavailable.map((machine) => (
@@ -90,7 +90,7 @@ export function IncidentsRoute() {
                 <Text className="num-cell">
                   {machine.down_until_hour === null
                     ? '—'
-                    : `${machine.down_until_hour.toFixed(1)}h`}
+                    : `H${machine.down_until_hour.toFixed(1)}`}
                 </Text>
                 <StatusLight status={machine.status} />
               </Grid>

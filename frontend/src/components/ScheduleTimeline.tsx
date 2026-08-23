@@ -22,11 +22,11 @@ export function ScheduleTimeline({ state, machines, onOptimize }: ScheduleTimeli
     <section className="timeline-panel">
       <Flex className="timeline-header">
         <Box>
-          <Text className="eyebrow">Committed plan · v{state.schedule_version}</Text>
+          <Text className="eyebrow">Current plan · v{state.schedule_version}</Text>
           <Heading className="panel-title">Production schedule</Heading>
         </Box>
         <button className="text-action" type="button" onClick={onOptimize}>
-          {jobs.length ? 'Re-optimize' : 'Build schedule'}
+          {jobs.length ? 'Review plan options' : 'Create schedule'}
         </button>
       </Flex>
 
@@ -34,7 +34,7 @@ export function ScheduleTimeline({ state, machines, onOptimize }: ScheduleTimeli
         <Flex className="timeline-empty">
           <Box>
             <Text>No production plan has been committed.</Text>
-            <Text>Run the optimizer to assign open orders to production lines.</Text>
+            <Text>Create a schedule to assign open orders to production lines.</Text>
           </Box>
         </Flex>
       ) : (

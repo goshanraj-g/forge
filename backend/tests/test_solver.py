@@ -195,3 +195,18 @@ def test_solver_returns_partial_schedule_when_one_order_lacks_inventory() -> Non
     )
     assert result.validation is not None
     assert result.validation.is_valid
+
+
+def test_deterministic_budget_bounds_the_search() -> None:
+    """The budget must reach CP-SAT, so an unusable one has to cut the search off."""
+    result = optimize_schedule(
+        factory_01(),
+        OptimizeRequest(deterministic_time_limit=1e-6),
+    )
+
+    assert result.status == ScheduleStatus.UNKNOWN
+    assert result.jobs == []
+    assert all(
+        order.reason_code == UnscheduledReason.SEARCH_INCOMPLETE
+        for order in result.unscheduled_orders
+    )

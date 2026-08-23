@@ -34,7 +34,12 @@ from backend.api.schemas import (
     SimulationResponse,
     TickRequest,
 )
-from backend.evaluation.runner import compare_baselines, compare_with_agent
+from backend.api.store import factory_store
+from backend.evaluation.runner import (
+    InitialScheduleUnavailable,
+    compare_baselines,
+    compare_with_agent,
+)
 from backend.evaluation.scenarios import load_scenarios, scenario_hash
 from backend.logging import configure_logging
 from backend.optimizer.models import OptimizeRequest, ScheduleResult
@@ -43,6 +48,7 @@ from backend.optimizer.validator import validate_schedule
 from backend.persistence.repository import PersistenceBatch
 from backend.simulator.engine import FactorySimulator
 from backend.simulator.events import BaseEvent, InjectableEvent
+from backend.simulator.seed import load_factory
 from backend.simulator.state import FactoryState
 
 logger = structlog.get_logger(__name__)
@@ -93,6 +99,25 @@ async def _handle_validation_error(
     )
 
 
+@app.exception_handler(InitialScheduleUnavailable)
+async def _handle_initial_schedule_unavailable(
+    _: Request, exc: InitialScheduleUnavailable
+) -> JSONResponse:
+    """Report a cut-off solve as a retryable condition, not a server crash.
+
+    Without this the evaluation routes surface a bare stack trace as a 500,
+    which hides that the run failed on solver budget rather than on bad input.
+    """
+    logger.warning(
+        "initial_schedule_unavailable",
+        scenario_id=exc.scenario_id,
+        status=str(exc.result.status),
+        solve_seconds=exc.result.solve_seconds,
+        time_limit_seconds=exc.result.time_limit_seconds,
+    )
+    return JSONResponse(status_code=503, content={"detail": str(exc)})
+
+
 def _persistence_unavailable(error: Exception) -> NoReturn:
     logger.exception("persistence_write_failed", error=str(error))
     raise HTTPException(
@@ -128,6 +153,34 @@ def health() -> HealthResponse:
 )
 def get_factory(simulator: ActiveSimulator) -> FactoryState:
     return simulator.state
+
+
+@app.post(
+    "/factories/{name}/reset",
+    response_model=FactoryState,
+)
+def reset_factory(
+    name: str,
+    repository: PersistentRepository,
+) -> FactoryState:
+    """Restore a factory to its seeded state and persist the new snapshot."""
+    try:
+        reset = FactorySimulator(load_factory(name))
+        # Acquire the lock in the route's worker thread. A reset replaces all
+        # simulator internals, so it must not overlap a tick or schedule commit.
+        with factory_store.locked(name) as simulator:
+            _publish(
+                simulator,
+                reset,
+                repository,
+                PersistenceBatch(state=reset.state, reset_factory=True),
+            )
+            return simulator.state
+    except KeyError as error:
+        raise HTTPException(
+            status_code=404,
+            detail=f"unknown factory {name!r}",
+        ) from error
 
 
 @app.post(

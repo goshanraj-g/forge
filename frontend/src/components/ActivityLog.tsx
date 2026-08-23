@@ -18,12 +18,12 @@ export function ActivityLog({ events, investigatedIds, onInjectFailure, onOptimi
         <Box>
           <Text className="eyebrow"><Activity size={13} /> Operations log</Text>
           <Text className="activity-summary">
-            {events.length ? `${events.length} events recorded this session` : 'Factory state is healthy'}
+            {events.length ? `${events.length} events recorded this session` : 'No events recorded yet'}
           </Text>
         </Box>
         <Flex gap="2">
-          <Button size="sm" variant="outline" onClick={onInjectFailure}><TriangleAlert size={14} /> Inject failure</Button>
-          <Button size="sm" className="optimize-button" onClick={onOptimize}><Sparkles size={14} /> Optimize schedule</Button>
+          <Button size="sm" variant="outline" onClick={onInjectFailure}><TriangleAlert size={14} /> Add test failure</Button>
+          <Button size="sm" className="optimize-button" onClick={onOptimize}><Sparkles size={14} /> Review schedule</Button>
         </Flex>
       </Flex>
 
@@ -60,7 +60,7 @@ function GridRow({ hour, title, detail, tone, investigated, onInvestigate }: { h
         type="button"
         onClick={onInvestigate}
       >
-        {investigated ? 'View decision' : 'Investigate'}
+        {investigated ? 'View review' : 'Review impact'}
       </button>
     </Flex>
   )

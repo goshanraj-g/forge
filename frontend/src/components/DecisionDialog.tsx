@@ -21,8 +21,10 @@ export function DecisionDialog({ event, result, loading, error, onClose, onRepla
       <Box className="decision-dialog" role="dialog" aria-modal="true" aria-labelledby="decision-title" onMouseDown={(click) => click.stopPropagation()}>
         <Flex className="dialog-header">
           <Box>
-            <Text className="eyebrow"><BrainCircuit size={13} /> Agent investigation</Text>
-            <Heading id="decision-title" className="dialog-title">Event {event.id}</Heading>
+            <Text className="eyebrow"><BrainCircuit size={13} /> AI impact review</Text>
+            <Heading id="decision-title" className="dialog-title">
+              {event.type.replaceAll('_', ' ')}
+            </Heading>
           </Box>
           <Button variant="ghost" size="sm" aria-label="Close" onClick={onClose}><X size={16} /></Button>
         </Flex>

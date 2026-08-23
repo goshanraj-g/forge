@@ -61,6 +61,7 @@ class OptimizeRequest(BaseModel):
     horizon_hours: PositiveFloat = 72.0
     bucket_hours: PositiveFloat = 1.0
     time_limit_seconds: PositiveFloat = 10.0
+    deterministic_time_limit: PositiveFloat | None = None
     weights: ObjectiveWeights = Field(
         default_factory=ObjectiveWeights,
     )

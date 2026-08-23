@@ -22,7 +22,11 @@ export interface WorkspaceValue {
   advance: () => void
   advancing: boolean
   advanceError: Error | null
+  reset: () => void
+  resetting: boolean
+  resetError: Error | null
   refetch: () => void
+  refreshing: boolean
   openSchedule: () => void
   openIncident: () => void
   investigate: (event: FactoryEvent) => void

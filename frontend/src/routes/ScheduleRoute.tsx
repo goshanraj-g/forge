@@ -16,24 +16,24 @@ export function ScheduleRoute() {
     <>
       <PageTitle
         title="Schedule"
-        sub="The committed production plan, and what it does not yet cover."
+        sub="See when each line will run and which open orders still need a slot."
       />
 
       <Grid className="stat-strip">
         <Stat
-          label="Committed version"
+          label="Current plan"
           value={`v${state.schedule_version}`}
           note={`${jobs.length} jobs planned`}
         />
         <Stat
-          label="Orders covered"
+          label="Orders in plan"
           value={`${scheduledOrders.size}/${openOrders.length}`}
           note={unscheduled.length ? `${unscheduled.length} uncovered` : 'All open orders'}
         />
         <Stat
-          label="Plan runs to"
-          value={jobs.length ? `${lastEnd.toFixed(1)}h` : '—'}
-          note={`from hour ${state.sim_hour.toFixed(2)}`}
+          label="Plan ends at"
+          value={jobs.length ? `H${lastEnd.toFixed(1)}` : '—'}
+          note={`Current time: H${state.sim_hour.toFixed(2)}`}
         />
         <Stat
           label="Changeover"
@@ -59,8 +59,8 @@ export function ScheduleRoute() {
           <>
             <Box className="table-header order-columns">
               <Text>Order</Text>
-              <Text>Remaining</Text>
-              <Text>Due</Text>
+              <Text>Units left</Text>
+              <Text>Due at hour</Text>
             </Box>
             {unscheduled
               .toSorted((a, b) => a.due_hour - b.due_hour)
@@ -73,7 +73,7 @@ export function ScheduleRoute() {
                     </Text>
                   </Box>
                   <Text className="num-cell">{order.quantity - order.produced}</Text>
-                  <Text className="num-cell">{order.due_hour}h</Text>
+                  <Text className="num-cell">H{order.due_hour}</Text>
                 </Grid>
               ))}
           </>

@@ -18,7 +18,7 @@ from backend.evaluation.policies import (
 )
 from backend.evaluation.scenarios import scenario_hash
 from backend.optimizer.baseline import build_baseline_schedule
-from backend.optimizer.models import OptimizeRequest, ScheduleResult
+from backend.optimizer.models import OptimizeRequest, ScheduleResult, ScheduleStatus
 from backend.optimizer.solver import optimize_schedule
 from backend.simulator.engine import FactorySimulator, SimulationContext
 from backend.simulator.models import OrderStatus, ProductionJob, q
@@ -27,14 +27,42 @@ from backend.simulator.state import FactoryState
 
 Scheduler = Callable[[FactoryState, OptimizeRequest | None], ScheduleResult]
 
+# Evaluation trades solve latency for a comparison that reproduces exactly, so
+# it is budgeted in CP-SAT deterministic units and keeps the wall clock only as
+# a backstop against a pathological model.
+EVALUATION_DETERMINISTIC_BUDGET = 30.0
+EVALUATION_WALL_CLOCK_GUARD_SECONDS = 300.0
+RETRY_DETERMINISTIC_BUDGET = 120.0
+
+
+class InitialScheduleUnavailable(RuntimeError):
+    """CP-SAT could not produce the shared starting plan for a scenario."""
+
+    def __init__(self, scenario_id: str, result: ScheduleResult) -> None:
+        super().__init__(
+            f"CP-SAT could not produce an initial schedule for {scenario_id!r}: "
+            f"status={result.status}, "
+            f"solve_seconds={result.solve_seconds:.1f}, "
+            f"time_limit_seconds={result.time_limit_seconds:.1f}"
+        )
+        self.scenario_id = scenario_id
+        self.result = result
+
 
 def evaluation_scheduler(
     state: FactoryState,
     request: OptimizeRequest | None = None,
 ) -> ScheduleResult:
-    """Run production CP-SAT with an evaluation-grade solve budget."""
-    options = request or OptimizeRequest(time_limit_seconds=60)
+    """Run production CP-SAT with a reproducible evaluation-grade solve budget."""
+    options = request or _evaluation_request(EVALUATION_DETERMINISTIC_BUDGET)
     return optimize_schedule(state, options)
+
+
+def _evaluation_request(deterministic_budget: float) -> OptimizeRequest:
+    return OptimizeRequest(
+        time_limit_seconds=EVALUATION_WALL_CLOCK_GUARD_SECONDS,
+        deterministic_time_limit=deterministic_budget,
+    )
 
 
 def _commit(state: FactoryState, jobs: list[ProductionJob]) -> None:
@@ -235,13 +263,19 @@ def compare_with_agent(
 
 def _initial_cp_sat_schedule(scenario: EvaluationScenario) -> ScheduleResult:
     """Solve once so every policy starts from the identical production plan."""
-    # Evaluation favors a trustworthy comparison over API latency. The normal
-    # interactive solver limit is intentionally shorter and can expire under CI
-    # contention before finding the first feasible plan.
+    # Evaluation favors a trustworthy comparison over API latency, so it solves
+    # on the wider deterministic budget rather than the interactive one.
     result = evaluation_scheduler(_prepare_state(scenario))
-    if not result.is_committable:
-        raise RuntimeError(
-            f"CP-SAT could not produce an initial schedule for {scenario.id!r}: "
-            f"{result.status}"
+    if result.status == ScheduleStatus.UNKNOWN:
+        # UNKNOWN means the search was cut off, not that the model is
+        # unsolvable, so the identical solve can still succeed with a longer
+        # budget. An agent comparison has already paid for real model calls by
+        # the time a later scenario is reached; one retry is much cheaper than
+        # discarding the whole run.
+        result = evaluation_scheduler(
+            _prepare_state(scenario),
+            _evaluation_request(RETRY_DETERMINISTIC_BUDGET),
         )
+    if not result.is_committable:
+        raise InitialScheduleUnavailable(scenario.id, result)
     return result

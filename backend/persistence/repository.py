@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from typing import Protocol
 
 from pydantic import TypeAdapter
-from sqlmodel import Session, col, select
+from sqlmodel import Session, col, delete, select
 
 from backend.agent.models import AgentDecisionRecord
 from backend.evaluation.models import EvaluationResult
@@ -32,6 +32,7 @@ class PersistenceBatch:
     schedule: list[ProductionJob] | None = None
     decision: AgentDecisionRecord | None = None
     evaluation: EvaluationResult | None = None
+    reset_factory: bool = False
 
 
 @dataclass(frozen=True)
@@ -61,6 +62,21 @@ class SQLRepository:
         with self._sessions() as session, session.begin():
             state = batch.state
             factory_name = state.name if state is not None else batch.factory_name
+            if batch.reset_factory:
+                if factory_name is None:
+                    raise ValueError("factory_name or state is required to reset")
+                # Event IDs and schedule versions restart with the seed state.
+                # Remove those active-run records atomically with its snapshot.
+                session.exec(
+                    delete(EventRecordRow).where(
+                        col(EventRecordRow.factory_name) == factory_name
+                    )
+                )
+                session.exec(
+                    delete(ScheduleRecordRow).where(
+                        col(ScheduleRecordRow.factory_name) == factory_name
+                    )
+                )
             if batch.schedule is not None and state is None:
                 raise ValueError("state is required to save a schedule")
             if state is not None:

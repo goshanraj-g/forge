@@ -8,7 +8,7 @@ const SOON_HOURS = 4
 const GRID_HOURS = [0, 6, 12, 18, 24]
 
 export function OverviewRoute() {
-  const { state, machines, orders, openOrders, unavailable, advanceError } = useWorkspace()
+  const { state, machines, orders, openOrders, unavailable, advanceError, resetError } = useWorkspace()
 
   const totalCost = state.production_cost + state.late_penalty_cost
 
@@ -28,7 +28,7 @@ export function OverviewRoute() {
     <>
       <PageTitle
         title="Factory overview"
-        sub="Live operating state and the production commitments it still has to meet."
+        sub="See line availability, open work, upcoming deadlines, and current cost."
       />
 
       <section className="deadline-band">
@@ -81,6 +81,11 @@ export function OverviewRoute() {
           Could not advance the clock. {advanceError.message}
         </Box>
       )}
+      {resetError && (
+        <Box className="inline-error">
+          Could not reset the simulation. {resetError.message}
+        </Box>
+      )}
 
       <Grid className="stat-strip">
         <Stat
@@ -98,7 +103,7 @@ export function OverviewRoute() {
           }
         />
         <Stat
-          label="Schedule version"
+          label="Current plan"
           value={`v${state.schedule_version}`}
           note={`${Object.keys(state.jobs).length} planned jobs`}
         />
@@ -115,7 +120,7 @@ export function OverviewRoute() {
           <Box className="table-header machine-columns">
             <Text>Machine</Text>
             <Text>Throughput</Text>
-            <Text>Workload</Text>
+            <Text>Products supported</Text>
             <Text>Status</Text>
           </Box>
           {machines.map((machine) => (
@@ -135,8 +140,8 @@ export function OverviewRoute() {
           <PanelHeader title="Order queue" meta={`${openOrders.length} open`} />
           <Box className="table-header order-columns">
             <Text>Order</Text>
-            <Text>Remaining</Text>
-            <Text>Due</Text>
+            <Text>Units left</Text>
+            <Text>Due at hour</Text>
           </Box>
           {openOrders
             .toSorted((a, b) => a.priority - b.priority || a.due_hour - b.due_hour)
@@ -150,7 +155,7 @@ export function OverviewRoute() {
                   </Text>
                 </Box>
                 <Text className="num-cell">{order.quantity - order.produced}</Text>
-                <Text className="num-cell">{order.due_hour}h</Text>
+                <Text className="num-cell">H{order.due_hour}</Text>
               </Grid>
             ))}
         </section>

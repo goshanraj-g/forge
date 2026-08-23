@@ -34,8 +34,8 @@ export function ScheduleDialog({ factoryName, state, onClose, onCommitted }: Sch
       <Box className="schedule-dialog" role="dialog" aria-modal="true" aria-labelledby="schedule-title" onMouseDown={(event) => event.stopPropagation()}>
         <Flex className="dialog-header">
           <Box>
-            <Text className="eyebrow">Decision preview</Text>
-            <Heading id="schedule-title" className="dialog-title">Build production schedule</Heading>
+            <Text className="eyebrow">Review before applying</Text>
+            <Heading id="schedule-title" className="dialog-title">Create a production schedule</Heading>
           </Box>
           <Button variant="ghost" size="sm" aria-label="Close" onClick={onClose}><X size={16} /></Button>
         </Flex>
@@ -43,14 +43,14 @@ export function ScheduleDialog({ factoryName, state, onClose, onCommitted }: Sch
         {!result && !optimize.isPending && (
           <Box className="schedule-empty">
             <Sparkles size={22} />
-            <Heading>Find a lower-cost plan</Heading>
-            <Text>The optimizer assigns open orders across available lines. Nothing changes until you review and commit the result.</Text>
-            <Button className="advance-button" onClick={() => optimize.mutate()}>Run optimizer</Button>
+            <Heading>Create an optimized plan</Heading>
+            <Text>ForgeOps will assign open orders to available lines and show you the result. The current schedule will not change until you apply the proposed plan.</Text>
+            <Button className="advance-button" onClick={() => optimize.mutate()}>Create proposed plan</Button>
           </Box>
         )}
 
         {optimize.isPending && (
-          <Flex className="schedule-loading"><Spinner size="sm" /><Text>Solving machine, inventory, and deadline constraints…</Text></Flex>
+          <Flex className="schedule-loading"><Spinner size="sm" /><Text>Finding a plan that fits line capacity, inventory, and deadlines…</Text></Flex>
         )}
 
         {optimize.isError && <Flex className="form-error"><TriangleAlert size={14} /> {optimize.error.message}</Flex>}
@@ -60,7 +60,7 @@ export function ScheduleDialog({ factoryName, state, onClose, onCommitted }: Sch
             <Grid className="schedule-summary">
               <Summary label="Result" value={result.status.replace('_', ' ')} />
               <Summary label="Planned jobs" value={String(result.jobs.length)} />
-              <Summary label="Estimated cost" value={`$${totalCost.toLocaleString()}`} />
+              <Summary label="Scheduling cost" value={`$${totalCost.toLocaleString()}`} />
               <Summary label="Solve time" value={`${result.solve_seconds.toFixed(2)}s`} />
             </Grid>
 
@@ -82,10 +82,16 @@ export function ScheduleDialog({ factoryName, state, onClose, onCommitted }: Sch
             {result.validation && result.validation.violations.length > 0 && (
               <Text className="schedule-warning"><TriangleAlert size={13} /> Validation found {result.validation.violations.length} violations.</Text>
             )}
+            {!result.validation && (
+              <Text className="schedule-warning"><TriangleAlert size={13} /> This plan could not be validated, so it cannot be applied.</Text>
+            )}
+            {!complete && (
+              <Text className="schedule-warning"><TriangleAlert size={13} /> No complete plan was found ({result.status.replace('_', ' ')}). Nothing can be applied.</Text>
+            )}
 
             <Flex className="dialog-actions">
-              <Button variant="outline" size="sm" onClick={() => optimize.mutate()} loading={optimize.isPending}>Run again</Button>
-              <Button className="commit-button" size="sm" disabled={!committable} loading={commit.isPending} onClick={() => commit.mutate(result)}><Check size={14} /> Commit schedule</Button>
+              <Button variant="outline" size="sm" onClick={() => optimize.mutate()} loading={optimize.isPending}>Recalculate</Button>
+              <Button className="commit-button" size="sm" disabled={!committable} loading={commit.isPending} onClick={() => commit.mutate(result)}><Check size={14} /> Apply this schedule</Button>
             </Flex>
             {commit.isError && <Flex className="form-error"><TriangleAlert size={14} /> {commit.error.message}</Flex>}
           </>

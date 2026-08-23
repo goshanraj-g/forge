@@ -304,6 +304,15 @@ def optimize_schedule(
 
     solver = cp_model.CpSolver()
     solver.parameters.max_time_in_seconds = options.time_limit_seconds
+    if options.deterministic_time_limit is not None:
+        # A wall-clock deadline makes the same model solve differently from one
+        # run to the next, because how far the search gets depends on how busy
+        # the host is. On a virtualized host CP-SAT's own clock also fires that
+        # deadline well before the configured seconds have really elapsed,
+        # abandoning the solve right after presolve. A deterministic budget is
+        # measured in work rather than time, so it stops at the same point
+        # every run and leaves time_limit_seconds as a pure backstop.
+        solver.parameters.max_deterministic_time = options.deterministic_time_limit
     solver.parameters.num_search_workers = 1
     solver.parameters.random_seed = 0
 

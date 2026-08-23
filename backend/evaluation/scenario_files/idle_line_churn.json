@@ -1,6 +1,6 @@
 {
   "id": "idle-line-churn",
-  "description": "A battery line that holds no committed work fails four times while four orders run elsewhere. Nothing about the plan needs to change, so replanning after every event only re-sequences work that was already fine and pays for it in changeover and overtime.",
+  "description": "A battery line fails four times in a row while part-way through the single order committed to it. Replanning after every failure does rescue the stalled units, but it re-sequences the three orders running elsewhere to do so, and the changeover and lateness it pays for that outweigh the demand it recovers.",
   "factory_name": "factory_01",
   "horizon_hour": 42,
   "step_hours": 0.25,

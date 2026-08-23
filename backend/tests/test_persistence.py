@@ -132,6 +132,33 @@ def test_event_can_be_recorded_when_scheduled_and_applied(
     repository.save(PersistenceBatch(state=state, events=[event]))
 
 
+def test_reset_clears_events_before_the_new_run(
+    sessions: Callable[[], Session],
+) -> None:
+    repository = SQLRepository(sessions)
+    state = factory_01()
+    event = MachineFailureEvent(
+        id="event-before-reset",
+        sim_hour=1,
+        machine_id="M1",
+        duration_hours=2,
+    )
+    repository.save(
+        PersistenceBatch(
+            factory_name=state.name,
+            events=[event],
+            event_stage="scheduled",
+        )
+    )
+
+    repository.save(PersistenceBatch(state=state, reset_factory=True))
+
+    recovered = repository.recover_factory(state.name)
+    assert recovered is not None
+    assert recovered.pending == []
+    assert recovered.log == []
+
+
 def test_schedule_requires_its_factory_state(
     sessions: Callable[[], Session],
 ) -> None:

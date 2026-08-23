@@ -6,7 +6,7 @@ import { useState, type ReactNode } from 'react'
 import { DecisionDialog } from './components/DecisionDialog'
 import { IncidentDialog } from './components/IncidentDialog'
 import { ScheduleDialog } from './components/ScheduleDialog'
-import { getFactory, investigateEvent, tickFactory } from './lib/api'
+import { getFactory, investigateEvent, resetFactory, tickFactory } from './lib/api'
 import type { AgentDecisionRecord, FactoryEvent, FactoryState } from './types/factory'
 import {
   FACTORY_NAME,
@@ -45,6 +45,20 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       }
     },
   })
+  const resetMutation = useMutation({
+    mutationFn: () => resetFactory(FACTORY_NAME),
+    onSuccess: (resetState) => {
+      queryClient.setQueryData<FactoryState>(['factory', FACTORY_NAME], resetState)
+      tickMutation.reset()
+      investigationMutation.reset()
+      setEvents([])
+      setDecisions({})
+      setInvestigationEvent(null)
+      setIncidentOpen(false)
+      setScheduleOpen(false)
+      setNotice('Simulation reset to its initial state')
+    },
+  })
   const investigationMutation = useMutation({
     mutationFn: (eventId: string) => investigateEvent(FACTORY_NAME, eventId),
     onSuccess: (record, eventId) => {
@@ -74,7 +88,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       advance: () => tickMutation.mutate(STEP_HOURS),
       advancing: tickMutation.isPending,
       advanceError: tickMutation.error,
+      reset: () => resetMutation.mutate(),
+      resetting: resetMutation.isPending,
+      resetError: resetMutation.error,
       refetch: () => void factoryQuery.refetch(),
+      refreshing: factoryQuery.isFetching,
       openSchedule: () => setScheduleOpen(true),
       openIncident: () => setIncidentOpen(true),
       investigate: (event) => {
