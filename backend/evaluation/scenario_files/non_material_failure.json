@@ -1,0 +1,18 @@
+{
+  "id": "unrelated-line-failure",
+  "description": "An unused battery line fails while motor orders are in production.",
+  "factory_name": "factory_01",
+  "horizon_hour": 30,
+  "step_hours": 0.25,
+  "order_ids": ["ORD-001", "ORD-003"],
+  "events": [
+    {
+      "id": "eval-failure-002",
+      "sim_hour": 4,
+      "type": "machine_failure",
+      "machine_id": "M4",
+      "duration_hours": 8
+    }
+  ],
+  "oracle_replan_event_ids": []
+}

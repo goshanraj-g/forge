@@ -30,16 +30,23 @@ pip install -e '.[dev]'
 pytest
 ```
 
+Regenerate the baseline evaluation table from clean factory snapshots with:
+
+```bash
+python -m backend.evaluation
+```
+
 ## Checks
 
-Continuous integration runs the same three checks on every pull request, across
-Python 3.11, 3.12, and 3.13:
+Continuous integration runs these checks on every pull request, across Python
+3.11, 3.12, and 3.13:
 
 ```bash
 ruff check .          # lint
 ruff format --check . # formatting
 mypy                  # strict type checking
 pytest --cov          # tests and coverage
+python -m backend.evaluation # evaluation smoke test (Python 3.12 CI job)
 ```
 
 Installing the pre-commit hooks runs the lint and format steps before each
