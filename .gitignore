@@ -15,6 +15,7 @@ dist/
 *.egg-info/
 .coverage
 htmlcov/
+forgeops.db
 
 # Secrets
 .env

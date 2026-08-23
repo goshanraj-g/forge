@@ -72,5 +72,7 @@ class AgentDecisionRecord(BaseModel):
 
     trigger_event_id: str
     trigger_event_type: str
+    prompt_version: str
+    model_name: str
 
     decision: AgentDecision

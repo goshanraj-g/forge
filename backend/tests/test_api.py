@@ -4,13 +4,33 @@ from fastapi.testclient import TestClient
 from pydantic_ai.models.test import TestModel
 
 from backend.api.app import app
-from backend.api.dependencies import get_agent_model
+from backend.api.dependencies import get_agent_model, get_agent_timeout, get_repository
 from backend.api.store import factory_store
+from backend.persistence.repository import PersistenceBatch
 from backend.simulator.events import MachineFailureEvent
 from backend.simulator.models import Machine, Order, Product, ProductionJob
 from backend.simulator.state import FactoryState
 
 client = TestClient(app)
+
+
+class RecordingRepository:
+    def __init__(self) -> None:
+        self.batches: list[PersistenceBatch] = []
+
+    def save(self, batch: PersistenceBatch) -> None:
+        self.batches.append(batch)
+
+    def latest_snapshot(self, factory_name: str) -> FactoryState | None:
+        return None
+
+    def recover_factory(self, factory_name: str) -> None:
+        return None
+
+
+test_repository = RecordingRepository()
+app.dependency_overrides[get_repository] = lambda: test_repository
+app.dependency_overrides[get_agent_timeout] = lambda: 30.0
 
 
 def get_test_agent_model() -> TestModel:
@@ -68,6 +88,27 @@ def test_tick_advances_factory_clock() -> None:
 
     assert response.status_code == 200
     assert response.json()["state"]["sim_hour"] == 0.5
+
+
+def test_tick_does_not_publish_state_when_persistence_fails() -> None:
+    class FailingRepository(RecordingRepository):
+        def save(self, batch: PersistenceBatch) -> None:
+            raise RuntimeError("database unavailable")
+
+    factory_store.clear()
+    simulator = factory_store.get("factory_01")
+    original_hash = simulator.state.snapshot_hash()
+    app.dependency_overrides[get_repository] = FailingRepository
+    try:
+        response = client.post(
+            "/factories/factory_01/tick",
+            json={"step_hours": 0.5},
+        )
+    finally:
+        app.dependency_overrides[get_repository] = lambda: test_repository
+
+    assert response.status_code == 503
+    assert simulator.state.snapshot_hash() == original_hash
 
 
 def test_tick_rejects_nonpositive_step() -> None:

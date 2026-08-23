@@ -1,8 +1,11 @@
 """FastAPI application"""
 
+import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from typing import NoReturn
 
+import structlog
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
@@ -12,7 +15,9 @@ from backend.agent.service import investigate_event
 from backend.api.dependencies import (
     ActiveSimulator,
     AgentModel,
+    AgentTimeout,
     LockedSimulator,
+    PersistentRepository,
     get_investigation_snapshot,
 )
 from backend.api.schemas import (
@@ -24,11 +29,16 @@ from backend.api.schemas import (
     SimulationResponse,
     TickRequest,
 )
+from backend.logging import configure_logging
 from backend.optimizer.models import OptimizeRequest, ScheduleResult
 from backend.optimizer.solver import optimize_schedule
 from backend.optimizer.validator import validate_schedule
+from backend.persistence.repository import PersistenceBatch
+from backend.simulator.engine import FactorySimulator
 from backend.simulator.events import InjectableEvent
 from backend.simulator.state import FactoryState
+
+logger = structlog.get_logger(__name__)
 
 
 class HealthResponse(BaseModel):
@@ -38,6 +48,7 @@ class HealthResponse(BaseModel):
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    configure_logging()
     configure_agent_observability()
     yield
 
@@ -47,6 +58,27 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+
+
+def _persistence_unavailable(error: Exception) -> NoReturn:
+    logger.exception("persistence_write_failed", error=str(error))
+    raise HTTPException(
+        status_code=503,
+        detail="durable storage is temporarily unavailable",
+    ) from error
+
+
+def _publish(
+    simulator: FactorySimulator,
+    working: FactorySimulator,
+    repository: PersistentRepository,
+    batch: PersistenceBatch,
+) -> None:
+    try:
+        repository.save(batch)
+    except Exception as error:
+        _persistence_unavailable(error)
+    simulator.replace_with(working)
 
 
 @app.get("/health", response_model=HealthResponse)
@@ -70,10 +102,18 @@ def get_factory(simulator: ActiveSimulator) -> FactoryState:
     response_model=SimulationResponse,
 )
 def tick_factory(
-    simulator: ActiveSimulator,
+    simulator: LockedSimulator,
+    repository: PersistentRepository,
     request: TickRequest,
 ) -> SimulationResponse:
-    events = simulator.tick(request.step_hours)
+    working = simulator.clone()
+    events = working.tick(request.step_hours)
+    _publish(
+        simulator,
+        working,
+        repository,
+        PersistenceBatch(state=working.state, events=events),
+    )
 
     return SimulationResponse(
         state=simulator.state,
@@ -86,11 +126,13 @@ def tick_factory(
     response_model=SimulationResponse,
 )
 def run_factory_until(
-    simulator: ActiveSimulator,
+    simulator: LockedSimulator,
+    repository: PersistentRepository,
     request: RunUntilRequest,
 ) -> SimulationResponse:
+    working = simulator.clone()
     try:
-        events = simulator.run_until(
+        events = working.run_until(
             request.hour,
             request.step_hours,
         )
@@ -99,6 +141,13 @@ def run_factory_until(
             status_code=409,
             detail=str(error),
         ) from error
+
+    _publish(
+        simulator,
+        working,
+        repository,
+        PersistenceBatch(state=working.state, events=events),
+    )
 
     return SimulationResponse(
         state=simulator.state,
@@ -112,7 +161,8 @@ def run_factory_until(
     status_code=202,
 )
 def schedule_factory_event(
-    simulator: ActiveSimulator,
+    simulator: LockedSimulator,
+    repository: PersistentRepository,
     event: InjectableEvent,
 ) -> EventScheduledResponse:
     if event.sim_hour < simulator.state.sim_hour:
@@ -121,7 +171,18 @@ def schedule_factory_event(
             detail="cannot schedule an event in the past",
         )
 
-    simulator.schedule(event)
+    working = simulator.clone()
+    working.schedule(event)
+    _publish(
+        simulator,
+        working,
+        repository,
+        PersistenceBatch(
+            factory_name=working.state.name,
+            events=[event],
+            event_stage="scheduled",
+        ),
+    )
 
     return EventScheduledResponse(
         event=event,
@@ -136,15 +197,25 @@ def schedule_factory_event(
 async def investigate_factory_event(
     name: str,
     model: AgentModel,
+    timeout_seconds: AgentTimeout,
+    repository: PersistentRepository,
     request: InvestigateEventRequest,
 ) -> AgentDecisionRecord:
-    state, event = get_investigation_snapshot(name, request.event_id)
+    state, event = get_investigation_snapshot(name, request.event_id, repository)
 
-    return await investigate_event(
-        state,
-        event,
-        model,
-    )
+    try:
+        async with asyncio.timeout(timeout_seconds):
+            record = await investigate_event(state, event, model)
+    except TimeoutError as error:
+        raise HTTPException(
+            status_code=504,
+            detail="agent investigation timed out",
+        ) from error
+    try:
+        repository.save(PersistenceBatch(decision=record))
+    except Exception as error:
+        _persistence_unavailable(error)
+    return record
 
 
 @app.post(
@@ -167,6 +238,7 @@ def optimize_factory(
 )
 def commit_schedule(
     simulator: LockedSimulator,
+    repository: PersistentRepository,
     request: CommitScheduleRequest,
 ) -> CommitScheduleResponse:
     state = simulator.state
@@ -221,6 +293,15 @@ def commit_schedule(
     committed_state.schedule_version = next_version
     # A version is a complete future plan, so commit replaces rather than merges it.
     committed_state.jobs = {job.id: job for job in request.jobs}
+    try:
+        repository.save(
+            PersistenceBatch(
+                state=committed_state,
+                schedule=request.jobs,
+            )
+        )
+    except Exception as error:
+        _persistence_unavailable(error)
     simulator.state = committed_state
 
     return CommitScheduleResponse(

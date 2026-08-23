@@ -36,6 +36,22 @@ Regenerate the baseline evaluation table from clean factory snapshots with:
 python -m backend.evaluation
 ```
 
+For the PostgreSQL/pgvector deployment, copy `.env.example` to `.env`, add the
+required secrets, and start the database, migrations, and API together:
+
+```bash
+docker compose up --build
+```
+
+Open the complete application at `http://localhost:3000`. Nginx serves the Vite
+build and proxies API requests to FastAPI over the internal Compose network.
+
+Dagster can materialize and persist the repeatable evaluation suite with:
+
+```bash
+dagster asset materialize -m backend.orchestration
+```
+
 ## Checks
 
 Continuous integration runs these checks on every pull request, across Python

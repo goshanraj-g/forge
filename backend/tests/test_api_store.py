@@ -5,6 +5,8 @@ from time import sleep
 import pytest
 
 from backend.api.store import FactoryStore
+from backend.simulator.engine import FactorySimulator
+from backend.simulator.seed import factory_01
 
 
 def test_store_reuses_and_resets_active_simulator() -> None:
@@ -17,6 +19,18 @@ def test_store_reuses_and_resets_active_simulator() -> None:
     assert first is second
     assert reset is not first
     assert store.get("factory_01") is reset
+
+
+def test_store_recovers_snapshot_on_first_activation() -> None:
+    store = FactoryStore()
+    recovered = factory_01()
+    recovered.sim_hour = 12
+
+    recovered_simulator = FactorySimulator(recovered)
+    simulator = store.get("factory_01", lambda _: recovered_simulator)
+
+    assert simulator.state.sim_hour == 12
+    assert simulator.state is recovered
 
 
 def test_store_rejects_unknown_factory() -> None:

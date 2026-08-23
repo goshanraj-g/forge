@@ -113,6 +113,8 @@ export interface AgentDecisionRecord {
   state_snapshot_hash: string
   trigger_event_id: string
   trigger_event_type: string
+  prompt_version: string
+  model_name: string
   decision: {
     status: 'no_action' | 'replan_recommended' | 'needs_information' | 'escalate'
     severity: 'info' | 'low' | 'medium' | 'high' | 'critical'

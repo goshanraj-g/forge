@@ -28,5 +28,15 @@ def test_builds_openai_responses_model(monkeypatch: pytest.MonkeyPatch) -> None:
     model = build_production_model(settings)
 
     assert settings.model_name == "test-model"
+    assert settings.timeout_seconds == 30
     assert isinstance(model, OpenAIResponsesModel)
     assert model.model_name == "test-model"
+
+
+def test_settings_reject_nonpositive_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("FORGEOPS_AGENT_MODEL", "test-model")
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv("FORGEOPS_AGENT_TIMEOUT_SECONDS", "0")
+
+    with pytest.raises(RuntimeError, match="must be positive"):
+        AgentSettings.from_environment()
