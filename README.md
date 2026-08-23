@@ -43,6 +43,9 @@ required secrets, and start the database, migrations, and API together:
 docker compose up --build
 ```
 
+Open the complete application at `http://localhost:3000`. Nginx serves the Vite
+build and proxies API requests to FastAPI over the internal Compose network.
+
 Dagster can materialize and persist the repeatable evaluation suite with:
 
 ```bash

@@ -35,5 +35,13 @@ services:
       migrate:
         condition: service_completed_successfully
 
+  frontend:
+    build:
+      context: frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - api
+
 volumes:
   forgeops-postgres:
