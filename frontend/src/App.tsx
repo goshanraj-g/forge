@@ -16,6 +16,7 @@ import { useState } from 'react'
 
 import { IncidentDialog } from './components/IncidentDialog'
 import { ScheduleDialog } from './components/ScheduleDialog'
+import { ScheduleTimeline } from './components/ScheduleTimeline'
 import { getFactory, tickFactory } from './lib/api'
 import type { FactoryState, MachineStatus } from './types/factory'
 
@@ -222,6 +223,12 @@ function App() {
             <Stat label="Schedule version" value={`v${state.schedule_version}`} note={`${Object.keys(state.jobs).length} planned jobs`} />
             <Stat label="Recorded cost" value={`$${totalCost.toLocaleString()}`} note={`${state.overtime_hours.toFixed(1)}h overtime`} />
           </Grid>
+
+          <ScheduleTimeline
+            state={state}
+            machines={machines}
+            onOptimize={() => setScheduleOpen(true)}
+          />
 
           <Grid className="dashboard-grid">
             <section className="data-panel machine-panel">
