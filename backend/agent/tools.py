@@ -3,6 +3,8 @@
 from pydantic_ai import RunContext
 
 from backend.agent.dependencies import AgentDependencies
+from backend.optimizer.models import OptimizeRequest, ScheduleResult
+from backend.optimizer.solver import optimize_schedule
 from backend.simulator.models import (
     InventoryItem,
     Machine,
@@ -40,3 +42,19 @@ def get_current_schedule(
     ctx: RunContext[AgentDependencies],
 ) -> list[ProductionJob]:
     return ctx.deps.state.job_list()
+
+
+def propose_schedule(
+    ctx: RunContext[AgentDependencies],
+) -> ScheduleResult:
+    """Generate a validated schedule candidate without commiting"""
+    request = OptimizeRequest(
+        horizion_hours=72,
+        bucket_hours=1,
+        time_limit_seconds=5,
+    )
+
+    return optimize_schedule(
+        ctx.deps.state,
+        request,
+    )

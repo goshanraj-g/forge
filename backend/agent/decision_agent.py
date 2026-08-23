@@ -10,6 +10,7 @@ from backend.agent.tools import (
     list_machines,
     list_open_orders,
     list_shipments,
+    propose_schedule,
 )
 
 SYSTEM_INSTRUCTIONS = """
@@ -40,6 +41,7 @@ decision_agent = Agent(
         list_inventory,
         list_shipments,
         get_current_schedule,
+        propose_schedule,
     ],
     instructions=SYSTEM_INSTRUCTIONS,
 )

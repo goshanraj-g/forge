@@ -1,8 +1,9 @@
 """Typed contracts for agent investigations and decisions"""
 
 from enum import StrEnum
+from typing import Self
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class DecisionSeverity(StrEnum):
@@ -32,3 +33,33 @@ class AgentDecision(BaseModel):
 
     should_replan: bool = False
     requires_human_approval: bool = False
+
+    @model_validator(mode="after")
+    def validate_consistency(self) -> Self:
+        if self.status == DecisionStatus.NO_ACTION and self.should_replan:
+            raise ValueError("a no_action decision cannot request replanning")
+
+        if self.status == DecisionStatus.REPLAN_RECOMMENDED and not self.should_replan:
+            raise ValueError("a replan_recommended decision must request replanning")
+
+        if (
+            self.status == DecisionStatus.NEEDS_INFORMATION
+            and not self.missing_information
+        ):
+            raise ValueError(
+                "a needs_information decision must identify missing information"
+            )
+
+        return self
+    
+    
+class AgentDecisionRecord(BaseModel):
+    factory_name: str
+    simulation_hour: float
+    schedule_version: int
+    state_snapshot_hash: str
+
+    trigger_event_id: str
+    trigger_event_type: str
+
+    decision: AgentDecision
