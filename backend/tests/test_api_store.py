@@ -1,3 +1,7 @@
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier
+from time import sleep
+
 import pytest
 
 from backend.api.store import FactoryStore
@@ -20,3 +24,22 @@ def test_store_rejects_unknown_factory() -> None:
 
     with pytest.raises(KeyError, match="missing"):
         store.get("missing")
+
+
+def test_store_serializes_mutations_for_one_factory() -> None:
+    store = FactoryStore()
+    barrier = Barrier(2)
+
+    def increment_version() -> None:
+        barrier.wait()
+        with store.locked("factory_01") as simulator:
+            version = simulator.state.schedule_version
+            sleep(0.01)
+            simulator.state.schedule_version = version + 1
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        futures = [executor.submit(increment_version) for _ in range(2)]
+        for future in futures:
+            future.result()
+
+    assert store.get("factory_01").state.schedule_version == 2

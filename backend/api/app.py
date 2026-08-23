@@ -3,7 +3,7 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
-from backend.api.dependencies import ActiveSimulator
+from backend.api.dependencies import ActiveSimulator, LockedSimulator
 from backend.api.schemas import (
     CommitScheduleRequest,
     CommitScheduleResponse,
@@ -129,7 +129,7 @@ def optimize_factory(
     response_model=CommitScheduleResponse,
 )
 def commit_schedule(
-    simulator: ActiveSimulator,
+    simulator: LockedSimulator,
     request: CommitScheduleRequest,
 ) -> CommitScheduleResponse:
     state = simulator.state
@@ -182,6 +182,7 @@ def commit_schedule(
 
     committed_state = state.clone()
     committed_state.schedule_version = next_version
+    # A version is a complete future plan, so commit replaces rather than merges it.
     committed_state.jobs = {job.id: job for job in request.jobs}
     simulator.state = committed_state
 

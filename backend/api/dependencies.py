@@ -1,5 +1,6 @@
 """Dependencies shared by API routes."""
 
+from collections.abc import Iterator
 from typing import Annotated
 
 from fastapi import Depends, HTTPException
@@ -18,7 +19,23 @@ def get_simulator(name: str) -> FactorySimulator:
         ) from error
 
 
+def get_locked_simulator(name: str) -> Iterator[FactorySimulator]:
+    try:
+        with factory_store.locked(name) as simulator:
+            yield simulator
+    except KeyError as error:
+        raise HTTPException(
+            status_code=404,
+            detail=f"unknown factory {name!r}",
+        ) from error
+
+
 ActiveSimulator = Annotated[
     FactorySimulator,
     Depends(get_simulator),
+]
+
+LockedSimulator = Annotated[
+    FactorySimulator,
+    Depends(get_locked_simulator),
 ]
