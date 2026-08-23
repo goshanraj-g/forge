@@ -7,8 +7,13 @@ import type {
   ScheduleResult,
   SimulationResponse,
 } from '../types/factory'
+import type { EvaluationComparison } from '../types/evaluation'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api'
+
+export function getEvaluations(): Promise<EvaluationComparison> {
+  return request('/evaluations')
+}
 
 export function investigateEvent(
   name: string,
