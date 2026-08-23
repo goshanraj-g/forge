@@ -23,12 +23,16 @@ from backend.api.dependencies import (
 from backend.api.schemas import (
     CommitScheduleRequest,
     CommitScheduleResponse,
+    EvaluationComparisonResponse,
+    EvaluationScenarioSummary,
     EventScheduledResponse,
     InvestigateEventRequest,
     RunUntilRequest,
     SimulationResponse,
     TickRequest,
 )
+from backend.evaluation.runner import compare_baselines
+from backend.evaluation.scenarios import load_scenarios, scenario_hash
 from backend.logging import configure_logging
 from backend.optimizer.models import OptimizeRequest, ScheduleResult
 from backend.optimizer.solver import optimize_schedule
@@ -307,4 +311,32 @@ def commit_schedule(
     return CommitScheduleResponse(
         state=committed_state,
         validation=validation,
+    )
+
+
+@app.get(
+    "/evaluations",
+    response_model=EvaluationComparisonResponse,
+)
+def compare_evaluation_baselines() -> EvaluationComparisonResponse:
+    """Run every baseline policy against every scenario from clean initial states.
+
+    Defined synchronously so FastAPI runs the solver in a worker thread rather
+    than blocking the event loop.
+    """
+    scenarios = load_scenarios()
+
+    return EvaluationComparisonResponse(
+        scenarios=[
+            EvaluationScenarioSummary(
+                id=scenario.id,
+                description=scenario.description,
+                factory_name=scenario.factory_name,
+                horizon_hour=scenario.horizon_hour,
+                scenario_hash=scenario_hash(scenario),
+                event_count=len(scenario.events),
+            )
+            for scenario in scenarios
+        ],
+        results=compare_baselines(scenarios),
     )

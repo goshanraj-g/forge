@@ -10,9 +10,10 @@ interface DecisionDialogProps {
   error?: Error
   onClose: () => void
   onReplan: () => void
+  onRetry: () => void
 }
 
-export function DecisionDialog({ event, result, loading, error, onClose, onReplan }: DecisionDialogProps) {
+export function DecisionDialog({ event, result, loading, error, onClose, onReplan, onRetry }: DecisionDialogProps) {
   const decision = result?.decision
 
   return (
@@ -27,7 +28,12 @@ export function DecisionDialog({ event, result, loading, error, onClose, onRepla
         </Flex>
 
         {loading && <Flex className="decision-loading"><Spinner size="sm" /><Text>Inspecting factory state and current commitments…</Text></Flex>}
-        {error && <Flex className="form-error"><TriangleAlert size={14} /> {error.message}</Flex>}
+        {error && (
+          <Box className="decision-failed">
+            <Flex className="form-error"><TriangleAlert size={14} /> {error.message}</Flex>
+            <Button size="sm" variant="outline" onClick={onRetry}>Run investigation again</Button>
+          </Box>
+        )}
 
         {decision && (
           <>

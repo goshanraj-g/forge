@@ -5,12 +5,13 @@ import type { FactoryEvent } from '../types/factory'
 
 interface ActivityLogProps {
   events: FactoryEvent[]
+  investigatedIds: Set<string>
   onInjectFailure: () => void
   onOptimize: () => void
   onInvestigate: (event: FactoryEvent) => void
 }
 
-export function ActivityLog({ events, onInjectFailure, onOptimize, onInvestigate }: ActivityLogProps) {
+export function ActivityLog({ events, investigatedIds, onInjectFailure, onOptimize, onInvestigate }: ActivityLogProps) {
   return (
     <section className="activity-panel">
       <Flex className="activity-head">
@@ -37,6 +38,7 @@ export function ActivityLog({ events, onInjectFailure, onOptimize, onInvestigate
                 title={detail.title}
                 detail={detail.detail}
                 tone={detail.tone}
+                investigated={investigatedIds.has(event.id)}
                 onInvestigate={() => onInvestigate(event)}
               />
             )
@@ -47,13 +49,19 @@ export function ActivityLog({ events, onInjectFailure, onOptimize, onInvestigate
   )
 }
 
-function GridRow({ hour, title, detail, tone, onInvestigate }: { hour: number; title: string; detail: string; tone: string; onInvestigate: () => void }) {
+function GridRow({ hour, title, detail, tone, investigated, onInvestigate }: { hour: number; title: string; detail: string; tone: string; investigated: boolean; onInvestigate: () => void }) {
   return (
     <Flex className="activity-row">
       <Text className="activity-hour">H{hour.toFixed(2)}</Text>
       <i className={`activity-dot ${tone}`} aria-hidden="true" />
       <Box><Text>{title}</Text><Text>{detail}</Text></Box>
-      <button className="investigate-action" type="button" onClick={onInvestigate}>Investigate</button>
+      <button
+        className={`investigate-action${investigated ? ' investigated' : ''}`}
+        type="button"
+        onClick={onInvestigate}
+      >
+        {investigated ? 'View decision' : 'Investigate'}
+      </button>
     </Flex>
   )
 }

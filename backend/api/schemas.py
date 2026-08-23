@@ -9,6 +9,7 @@ from pydantic import (
     SerializeAsAny,
 )
 
+from backend.evaluation.models import EvaluationResult
 from backend.optimizer.models import ValidationResult
 from backend.simulator.events import BaseEvent
 from backend.simulator.models import ProductionJob
@@ -47,3 +48,19 @@ class CommitScheduleRequest(BaseModel):
 class CommitScheduleResponse(BaseModel):
     state: FactoryState
     validation: ValidationResult
+
+
+class EvaluationScenarioSummary(BaseModel):
+    id: str
+    description: str
+    factory_name: str
+    horizon_hour: float
+    scenario_hash: str
+    event_count: int
+
+
+class EvaluationComparisonResponse(BaseModel):
+    """Every baseline policy run against every scenario, plus scenario metadata."""
+
+    scenarios: list[EvaluationScenarioSummary]
+    results: list[EvaluationResult]

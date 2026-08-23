@@ -356,3 +356,40 @@ def test_commit_rejects_incomplete_schedule() -> None:
     assert response.json()["detail"]["message"] == (
         "schedule does not cover every open order"
     )
+
+
+def test_evaluations_returns_every_policy_for_every_scenario() -> None:
+    response = client.get("/evaluations")
+
+    assert response.status_code == 200
+    body = response.json()
+    scenario_ids = {scenario["id"] for scenario in body["scenarios"]}
+    assert scenario_ids
+
+    policies_by_scenario: dict[str, set[str]] = {}
+    for result in body["results"]:
+        policies_by_scenario.setdefault(result["scenario_id"], set()).add(
+            result["policy_name"]
+        )
+
+    assert set(policies_by_scenario) == scenario_ids
+    expected_policies = {"no-op", "always-replan", "oracle"}
+    assert all(
+        policies == expected_policies for policies in policies_by_scenario.values()
+    )
+
+
+def test_evaluations_are_repeatable_across_requests() -> None:
+    first = client.get("/evaluations").json()
+    second = client.get("/evaluations").json()
+
+    def comparable(body: dict[str, object]) -> list[dict[str, object]]:
+        results = body["results"]
+        assert isinstance(results, list)
+        return [
+            {key: value for key, value in result.items() if key != "started_at"}
+            for result in results
+        ]
+
+    assert comparable(first) == comparable(second)
+    assert first["scenarios"] == second["scenarios"]
