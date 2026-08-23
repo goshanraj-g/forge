@@ -102,6 +102,10 @@ jobs:
       - name: Pytest
         run: pytest --cov --cov-report=term-missing --cov-report=xml
 
+      - name: Evaluation smoke test
+        if: matrix.python-version == '3.12'
+        run: python -m backend.evaluation
+
       - name: Upload coverage report
         if: matrix.python-version == '3.12'
         uses: actions/upload-artifact@v4

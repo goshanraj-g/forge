@@ -145,7 +145,10 @@ Every scenario is compared with three baselines:
 
 1. **No-op:** preserve the original schedule.
 2. **Always replan:** optimize after every event without agent selectivity.
-3. **Oracle:** optimize with advance knowledge of the scenario event stream.
+3. **Oracle:** use scenario ground-truth labels to replan only for material
+   events. The labels are written with advance knowledge of the complete event
+   stream; the optimizer still receives only the state available at decision
+   time.
 
 Primary metrics include late orders, priority-weighted lateness, production and
 penalty cost, overtime, constraint violations, replans, model calls, and model

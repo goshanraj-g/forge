@@ -1,0 +1,18 @@
+{
+  "id": "assembly-line-failure",
+  "description": "An active assembly line fails during a two-order production window.",
+  "factory_name": "factory_01",
+  "horizon_hour": 30,
+  "step_hours": 0.25,
+  "order_ids": ["ORD-001", "ORD-003"],
+  "events": [
+    {
+      "id": "eval-failure-001",
+      "sim_hour": 4,
+      "type": "machine_failure",
+      "machine_id": "M1",
+      "duration_hours": 8
+    }
+  ],
+  "oracle_replan_event_ids": ["eval-failure-001"]
+}
