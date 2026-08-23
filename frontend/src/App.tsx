@@ -1,28 +1,33 @@
-import { Badge, Box, Button, Flex, Grid, Heading, Spinner, Text } from '@chakra-ui/react'
+import { Box, Button, Flex, Grid, Heading, Spinner, Text } from '@chakra-ui/react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Clock3, Factory, Play, RefreshCw, TriangleAlert } from 'lucide-react'
+import {
+  Activity,
+  CalendarRange,
+  ChevronDown,
+  CircleGauge,
+  Factory,
+  FlaskConical,
+  Play,
+  RefreshCw,
+  Settings,
+  TriangleAlert,
+} from 'lucide-react'
 
 import { getFactory, tickFactory } from './lib/api'
 import type { FactoryState, MachineStatus } from './types/factory'
 
 const FACTORY_NAME = 'factory_01'
+const STEP_HOURS = 0.25
+const WINDOW_HOURS = 24
+const SOON_HOURS = 4
+const GRID_HOURS = [0, 6, 12, 18, 24]
 
-const statusPalette: Record<MachineStatus, string> = {
-  running: 'green',
-  idle: 'gray',
-  down: 'red',
-  maintenance: 'orange',
-}
-
-function metric(label: string, value: string, detail: string) {
-  return (
-    <Box className="metric-card">
-      <Text className="eyebrow">{label}</Text>
-      <Text className="metric-value">{value}</Text>
-      <Text className="metric-detail">{detail}</Text>
-    </Box>
-  )
-}
+const navigation = [
+  { label: 'Overview', icon: CircleGauge, active: true },
+  { label: 'Schedule', icon: CalendarRange },
+  { label: 'Incidents', icon: TriangleAlert },
+  { label: 'Evaluations', icon: FlaskConical },
+]
 
 function App() {
   const queryClient = useQueryClient()
@@ -40,8 +45,8 @@ function App() {
   if (factoryQuery.isPending) {
     return (
       <Flex className="center-state">
-        <Spinner size="lg" />
-        <Text>Loading factory state…</Text>
+        <Spinner size="md" />
+        <Text>Connecting to factory…</Text>
       </Flex>
     )
   }
@@ -49,10 +54,12 @@ function App() {
   if (factoryQuery.isError) {
     return (
       <Flex className="center-state error-state">
-        <TriangleAlert size={28} />
-        <Heading size="md">Factory unavailable</Heading>
+        <TriangleAlert size={22} />
+        <Heading className="page-title">Could not load factory</Heading>
         <Text>{factoryQuery.error.message}</Text>
-        <Button onClick={() => factoryQuery.refetch()}>Try again</Button>
+        <Button size="sm" onClick={() => factoryQuery.refetch()}>
+          Try again
+        </Button>
       </Flex>
     )
   }
@@ -63,141 +70,222 @@ function App() {
   const openOrders = orders.filter(
     (order) => order.status === 'pending' || order.status === 'in_progress',
   )
-  const unavailableMachines = machines.filter(
+  const unavailable = machines.filter(
     (machine) => machine.status === 'down' || machine.status === 'maintenance',
   )
   const totalCost = state.production_cost + state.late_penalty_cost
 
+  // Every deadline measured from now, so the band only ever shows work still ahead.
+  const deadlines = openOrders.map((order) => ({
+    id: order.id,
+    hoursOut: order.due_hour - state.sim_hour,
+  }))
+  const overdue = deadlines.filter((deadline) => deadline.hoursOut < 0)
+  const inWindow = deadlines.filter(
+    (deadline) => deadline.hoursOut >= 0 && deadline.hoursOut <= WINDOW_HOURS,
+  )
+  const later = deadlines.filter((deadline) => deadline.hoursOut > WINDOW_HOURS)
+  const at = (hours: number) => `${(hours / WINDOW_HOURS) * 100}%`
+
   return (
-    <Box className="app-shell">
-      <Flex as="header" className="topbar">
-        <Flex align="center" gap="3">
-          <Box className="brand-mark"><Factory size={20} /></Box>
-          <Box>
-            <Text className="brand-name">ForgeOps</Text>
-            <Text className="brand-subtitle">Factory control</Text>
-          </Box>
+    <Grid className="app-layout">
+      <Flex as="aside" className="sidebar">
+        <Flex className="wordmark">
+          <Box className="logo-mark">F</Box>
+          <Text>ForgeOps</Text>
         </Flex>
-        <Badge colorPalette="green" variant="subtle">Simulator online</Badge>
+
+        <Box as="nav" className="nav-list">
+          {navigation.map(({ label, icon: Icon, active }) => (
+            <Flex className={`nav-item${active ? ' active' : ''}`} key={label}>
+              <Icon size={16} strokeWidth={1.8} />
+              <Text>{label}</Text>
+            </Flex>
+          ))}
+        </Box>
+
+        <Box className="sidebar-footer">
+          <Flex className="nav-item">
+            <Settings size={16} strokeWidth={1.8} />
+            <Text>Settings</Text>
+          </Flex>
+          <Flex className="workspace-user">
+            <Box className="avatar">GR</Box>
+            <Box>
+              <Text>Operations</Text>
+              <Text>Demo workspace</Text>
+            </Box>
+          </Flex>
+        </Box>
       </Flex>
 
-      <Box as="main" className="page">
-        <Flex className="page-heading">
-          <Box>
-            <Text className="eyebrow">{state.name.replace('_', ' ')}</Text>
-            <Heading size="2xl">Operations overview</Heading>
-            <Text className="page-description">
-              Current production state, order pressure, and machine availability.
-            </Text>
-          </Box>
-
-          <Flex className="clock-control">
-            <Box>
-              <Flex align="center" gap="2" className="clock-label">
-                <Clock3 size={15} /> Simulation time
-              </Flex>
-              <Text className="clock-value">Hour {state.sim_hour.toFixed(2)}</Text>
-            </Box>
+      <Box className="workspace">
+        <Flex as="header" className="workspace-header">
+          <Button variant="ghost" size="sm" className="factory-selector">
+            <Factory size={15} /> factory_01 <ChevronDown size={14} />
+          </Button>
+          <Flex align="center" gap="3">
+            <Flex className="connection-state">
+              <span /> Live
+            </Flex>
             <Button
-              colorPalette="green"
-              loading={tickMutation.isPending}
-              onClick={() => tickMutation.mutate(0.25)}
-            >
-              <Play size={15} /> Advance 15 min
-            </Button>
-            <Button
-              variant="outline"
+              variant="ghost"
+              size="sm"
               aria-label="Refresh factory state"
               onClick={() => factoryQuery.refetch()}
             >
-              <RefreshCw size={16} />
+              <RefreshCw size={15} />
             </Button>
           </Flex>
         </Flex>
 
-        {tickMutation.isError && (
-          <Box className="inline-error">{tickMutation.error.message}</Box>
-        )}
-
-        <Grid className="metrics-grid">
-          {metric('Open orders', String(openOrders.length), `${orders.length} total`)}
-          {metric(
-            'Machines available',
-            `${machines.length - unavailableMachines.length}/${machines.length}`,
-            unavailableMachines.length
-              ? `${unavailableMachines.length} need attention`
-              : 'All lines available',
-          )}
-          {metric(
-            'Schedule version',
-            `v${state.schedule_version}`,
-            `${Object.keys(state.jobs).length} planned jobs`,
-          )}
-          {metric(
-            'Recorded cost',
-            `$${totalCost.toLocaleString()}`,
-            `${state.overtime_hours.toFixed(1)} overtime hours`,
-          )}
-        </Grid>
-
-        <Grid className="content-grid">
-          <Box className="panel">
-            <Flex className="panel-heading">
-              <Box>
-                <Text className="eyebrow">Production floor</Text>
-                <Heading size="lg">Machines</Heading>
-              </Box>
-              <Text className="panel-count">{machines.length} lines</Text>
-            </Flex>
-            <Box>
-              {machines.map((machine) => (
-                <Flex className="machine-row" key={machine.id}>
-                  <Box>
-                    <Text className="row-title">{machine.name}</Text>
-                    <Text className="row-detail">
-                      {machine.capacity_per_hour} units/hour ·{' '}
-                      {machine.supported_products.length} products
-                    </Text>
-                  </Box>
-                  <Badge colorPalette={statusPalette[machine.status]} variant="subtle">
-                    {machine.status}
-                  </Badge>
-                </Flex>
-              ))}
-            </Box>
+        <Box as="main" className="page-content">
+          <Box className="title-row">
+            <Heading className="page-title">Factory overview</Heading>
+            <Text className="page-sub">
+              Live operating state and the production commitments it still has to meet.
+            </Text>
           </Box>
 
-          <Box className="panel">
-            <Flex className="panel-heading">
+          <section className="deadline-band">
+            <Flex className="band-head">
               <Box>
-                <Text className="eyebrow">Demand</Text>
-                <Heading size="lg">Priority orders</Heading>
+                <Text className="eyebrow">Order deadlines</Text>
+                <Heading className="band-title">Next 24 simulated hours</Heading>
               </Box>
-              <Text className="panel-count">{openOrders.length} open</Text>
+              <Flex align="center" gap="5">
+                <Box className="clock">
+                  <Text className="eyebrow">Sim hour</Text>
+                  <Text className="clock-value">{state.sim_hour.toFixed(2)}</Text>
+                </Box>
+                <Button
+                  className="advance-button"
+                  loading={tickMutation.isPending}
+                  onClick={() => tickMutation.mutate(STEP_HOURS)}
+                >
+                  <Play size={13} fill="currentColor" /> Advance 15 min
+                </Button>
+              </Flex>
             </Flex>
-            <Box>
+
+            <Box className="band">
+              <Box className="band-track">
+                {GRID_HOURS.map((hour) => (
+                  <i className="grid" key={hour} style={{ left: at(hour) }} />
+                ))}
+                {inWindow.map((deadline) => (
+                  <i
+                    className={deadline.hoursOut <= SOON_HOURS ? 'due soon' : 'due'}
+                    key={deadline.id}
+                    style={{ left: at(deadline.hoursOut) }}
+                    title={`${deadline.id} due in ${deadline.hoursOut.toFixed(1)}h`}
+                  />
+                ))}
+              </Box>
+              <Box className="band-scale">
+                {GRID_HOURS.map((hour) => (
+                  <span key={hour} style={{ left: at(hour) }}>
+                    {hour === 0 ? 'Now' : `+${hour}h`}
+                  </span>
+                ))}
+              </Box>
+            </Box>
+
+            <Flex className="band-note">
+              {overdue.length > 0 && (
+                <Text className="overdue">{overdue.length} past due</Text>
+              )}
+              <Text>
+                {inWindow.length === 0
+                  ? 'Nothing due in this window'
+                  : `${inWindow.length} due in this window`}
+                {later.length > 0 && ` · ${later.length} scheduled beyond it`}
+              </Text>
+            </Flex>
+          </section>
+
+          {tickMutation.isError && (
+            <Box className="inline-error">
+              Could not advance the clock. {tickMutation.error.message}
+            </Box>
+          )}
+
+          <Grid className="stat-strip">
+            <Stat label="Open orders" value={String(openOrders.length)} note={`${orders.length} total`} />
+            <Stat label="Available lines" value={`${machines.length - unavailable.length}/${machines.length}`} note={unavailable.length ? `${unavailable.length} need attention` : 'No active incidents'} />
+            <Stat label="Schedule version" value={`v${state.schedule_version}`} note={`${Object.keys(state.jobs).length} planned jobs`} />
+            <Stat label="Recorded cost" value={`$${totalCost.toLocaleString()}`} note={`${state.overtime_hours.toFixed(1)}h overtime`} />
+          </Grid>
+
+          <Grid className="dashboard-grid">
+            <section className="data-panel machine-panel">
+              <PanelHeader title="Production lines" meta={`${machines.length} machines`} />
+              <Box className="table-header machine-columns">
+                <Text>Machine</Text><Text>Throughput</Text><Text>Workload</Text><Text>Status</Text>
+              </Box>
+              {machines.map((machine) => (
+                <Grid className="table-row machine-columns" key={machine.id}>
+                  <Box><Text className="primary-cell">{machine.name}</Text><Text className="sub-cell">{machine.id}</Text></Box>
+                  <Text className="num-cell">{machine.capacity_per_hour}/hr</Text>
+                  <Text className="num-cell">{machine.supported_products.length} products</Text>
+                  <StatusLight status={machine.status} />
+                </Grid>
+              ))}
+            </section>
+
+            <section className="data-panel order-panel">
+              <PanelHeader title="Order queue" meta={`${openOrders.length} open`} />
+              <Box className="table-header order-columns">
+                <Text>Order</Text><Text>Remaining</Text><Text>Due</Text>
+              </Box>
               {openOrders
                 .toSorted((a, b) => a.priority - b.priority || a.due_hour - b.due_hour)
-                .slice(0, 6)
+                .slice(0, 7)
                 .map((order) => (
-                  <Flex className="order-row" key={order.id}>
-                    <Box>
-                      <Text className="row-title">{order.id}</Text>
-                      <Text className="row-detail">
-                        {order.product_id} · {order.quantity - order.produced} units left
-                      </Text>
-                    </Box>
-                    <Box textAlign="right">
-                      <Text className="due-hour">Due {order.due_hour}h</Text>
-                      <Text className="priority">Priority {order.priority}</Text>
-                    </Box>
-                  </Flex>
+                  <Grid className="table-row order-columns" key={order.id}>
+                    <Box><Text className="primary-cell">{order.id}</Text><Text className="sub-cell">{order.product_id} · P{order.priority}</Text></Box>
+                    <Text className="num-cell">{order.quantity - order.produced}</Text>
+                    <Text className="num-cell">{order.due_hour}h</Text>
+                  </Grid>
                 ))}
-            </Box>
-          </Box>
-        </Grid>
+            </section>
+          </Grid>
+
+          <Flex className="activity-bar">
+            <Text className="eyebrow"><Activity size={13} /> System activity</Text>
+            <Text>{unavailable.length ? `${unavailable.length} production lines require attention` : 'No active incidents. Factory state is healthy.'}</Text>
+          </Flex>
+        </Box>
       </Box>
+    </Grid>
+  )
+}
+
+function StatusLight({ status }: { status: MachineStatus }) {
+  return (
+    <span className={`status status-${status}`}>
+      <i aria-hidden="true" />
+      {status}
+    </span>
+  )
+}
+
+function Stat({ label, value, note }: { label: string; value: string; note: string }) {
+  return (
+    <Box className="stat">
+      <Text className="eyebrow">{label}</Text>
+      <Text className="stat-value">{value}</Text>
+      <Text className="stat-note">{note}</Text>
     </Box>
+  )
+}
+
+function PanelHeader({ title, meta }: { title: string; meta: string }) {
+  return (
+    <Flex className="panel-header">
+      <Heading className="panel-title">{title}</Heading>
+      <Text className="eyebrow">{meta}</Text>
+    </Flex>
   )
 }
 
