@@ -150,10 +150,21 @@ Every scenario is compared with three baselines:
    stream; the optimizer still receives only the state available at decision
    time.
 
-Primary metrics include late orders, priority-weighted lateness, production and
-penalty cost, overtime, constraint violations, replans, model calls, and model
-cost. Repeated scenarios verify determinism before their metrics are considered
-valid.
+Policies are compared on **controllable cost**: late penalty plus overtime plus
+changeover. Cost of goods is reported but excluded from the comparison, because
+it follows demand rather than sequencing — including it makes a run that simply
+builds less look cheapest, which is the opposite of what the harness is for.
+Unmet demand is reported alongside lateness so a partially built order is not
+scored as though it were merely late.
+
+Other metrics include late orders, priority-weighted lateness, overtime and
+changeover hours, constraint violations, replans, model calls, and model cost.
+Repeated scenarios verify determinism before their metrics are considered valid.
+
+The scenario suite has to be able to separate the baselines in both directions:
+at least one scenario where replanning clearly wins, and one where replanning
+after an immaterial event clearly loses. A comparison table in which every row
+ties measures nothing and gives a later agent policy no target to beat.
 
 ## Delivery plan
 

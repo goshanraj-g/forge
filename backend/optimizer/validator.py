@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections import Counter, defaultdict
 from itertools import pairwise
+from math import ceil
 
 from backend.optimizer.models import (
     ScheduleViolation,
@@ -225,7 +226,9 @@ def _check_order_quantities(
         if order is None:
             continue
 
-        if scheduled[order_id] > order.remaining:
+        # Job quantities are whole units, so covering a fractional remainder
+        # requires rounding up. Anything beyond that is real over-production.
+        if scheduled[order_id] > ceil(order.remaining):
             violations.append(
                 ScheduleViolation(
                     code=ViolationCode.INVALID_QUANTITY,

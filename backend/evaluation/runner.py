@@ -63,20 +63,27 @@ def _metrics(
 ) -> EvaluationMetrics:
     late_orders = 0
     weighted_lateness = 0.0
+    unmet_demand = 0.0
     for order in state.order_list():
         completion_hour = order.completed_hour or state.sim_hour
         lateness = max(0.0, completion_hour - order.due_hour)
         if order.status == OrderStatus.LATE or lateness > 0:
             late_orders += 1
         weighted_lateness += lateness * order.priority
+        unmet_demand += order.remaining
 
     return EvaluationMetrics(
         late_orders=late_orders,
         priority_weighted_lateness=q(weighted_lateness),
-        production_cost=state.production_cost,
+        unmet_demand_units=q(unmet_demand),
         penalty_cost=state.late_penalty_cost,
+        overtime_cost=state.overtime_cost,
+        changeover_cost=state.changeover_cost,
+        controllable_cost=state.controllable_cost(),
+        production_cost=state.production_cost,
         total_cost=state.total_cost(),
         overtime_hours=state.overtime_hours,
+        changeover_hours=state.changeover_hours,
         constraint_violations=violations,
         replans=replans,
         model_calls=policy.model_calls,

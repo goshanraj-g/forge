@@ -1,0 +1,39 @@
+{
+  "id": "idle-line-churn",
+  "description": "A battery line that holds no committed work fails four times while four orders run elsewhere. Nothing about the plan needs to change, so replanning after every event only re-sequences work that was already fine and pays for it in changeover and overtime.",
+  "factory_name": "factory_01",
+  "horizon_hour": 42,
+  "step_hours": 0.25,
+  "order_ids": ["ORD-001", "ORD-002", "ORD-003", "ORD-006"],
+  "events": [
+    {
+      "id": "eval-churn-001",
+      "sim_hour": 3,
+      "type": "machine_failure",
+      "machine_id": "M4",
+      "duration_hours": 4
+    },
+    {
+      "id": "eval-churn-002",
+      "sim_hour": 7,
+      "type": "machine_failure",
+      "machine_id": "M4",
+      "duration_hours": 4
+    },
+    {
+      "id": "eval-churn-003",
+      "sim_hour": 11,
+      "type": "machine_failure",
+      "machine_id": "M4",
+      "duration_hours": 4
+    },
+    {
+      "id": "eval-churn-004",
+      "sim_hour": 15,
+      "type": "machine_failure",
+      "machine_id": "M4",
+      "duration_hours": 4
+    }
+  ],
+  "oracle_replan_event_ids": []
+}

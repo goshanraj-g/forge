@@ -48,12 +48,24 @@ class EvaluationScenario(BaseModel):
 
 
 class EvaluationMetrics(BaseModel):
+    """Outcome of one policy run.
+
+    `controllable_cost` is the figure policies are compared on. `total_cost`
+    adds cost of goods, which follows demand rather than scheduling quality and
+    therefore falls whenever a run simply produces less.
+    """
+
     late_orders: int = 0
     priority_weighted_lateness: float = 0.0
-    production_cost: float = 0.0
+    unmet_demand_units: float = 0.0
     penalty_cost: float = 0.0
+    overtime_cost: float = 0.0
+    changeover_cost: float = 0.0
+    controllable_cost: float = 0.0
+    production_cost: float = 0.0
     total_cost: float = 0.0
     overtime_hours: float = 0.0
+    changeover_hours: float = 0.0
     constraint_violations: int = 0
     replans: int = 0
     model_calls: int = 0

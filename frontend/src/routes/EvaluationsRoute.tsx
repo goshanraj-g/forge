@@ -17,7 +17,7 @@ function CostDelta({ result, control }: { result: EvaluationResult; control?: nu
   if (control === undefined || result.policy_name === 'no-op') {
     return <Text className="num-cell delta-flat">baseline</Text>
   }
-  const delta = result.metrics.total_cost - control
+  const delta = result.metrics.controllable_cost - control
   if (Math.abs(delta) < 0.5) {
     return <Text className="num-cell delta-flat">no change</Text>
   }
@@ -106,8 +106,9 @@ export function EvaluationsRoute() {
               BASELINE_ORDER.indexOf(a.policy_name) -
               BASELINE_ORDER.indexOf(b.policy_name),
           )
-        const control = rows.find((row) => row.policy_name === 'no-op')?.metrics.total_cost
-        const best = Math.min(...rows.map((row) => row.metrics.total_cost))
+        const control = rows.find((row) => row.policy_name === 'no-op')?.metrics
+          .controllable_cost
+        const best = Math.min(...rows.map((row) => row.metrics.controllable_cost))
 
         return (
           <section className="data-panel evaluation-panel" key={scenario.id}>
@@ -120,7 +121,8 @@ export function EvaluationsRoute() {
             <Box className="table-header eval-columns">
               <Text>Policy</Text>
               <Text>Late orders</Text>
-              <Text>Total cost</Text>
+              <Text>Unmet units</Text>
+              <Text>Controllable cost</Text>
               <Text>vs no-op</Text>
               <Text>Replans</Text>
               <Text>Violations</Text>
@@ -132,10 +134,20 @@ export function EvaluationsRoute() {
                   <Text className="sub-cell">{row.final_state_hash.slice(0, 12)}</Text>
                 </Box>
                 <Text className="num-cell">{row.metrics.late_orders}</Text>
+                <Text className="num-cell">
+                  {row.metrics.unmet_demand_units.toLocaleString(undefined, {
+                    maximumFractionDigits: 0,
+                  })}
+                </Text>
                 <Text
-                  className={`num-cell${row.metrics.total_cost === best ? ' cost-best' : ''}`}
+                  className={`num-cell${
+                    row.metrics.controllable_cost === best ? ' cost-best' : ''
+                  }`}
+                  title={`penalty ${money(row.metrics.penalty_cost)} · overtime ${money(
+                    row.metrics.overtime_cost,
+                  )} · changeover ${money(row.metrics.changeover_cost)}`}
                 >
-                  {money(row.metrics.total_cost)}
+                  {money(row.metrics.controllable_cost)}
                 </Text>
                 <CostDelta result={row} control={control} />
                 <Text className="num-cell">{row.metrics.replans}</Text>
@@ -153,6 +165,9 @@ export function EvaluationsRoute() {
       <Flex className="evaluation-footnote">
         <TriangleAlert size={13} />
         <Text>
+          Policies are ranked on controllable cost — late penalty plus overtime plus
+          changeover. Cost of goods is excluded because it follows demand, not
+          scheduling, so counting it would reward a run that simply builds less.
           Scenarios are hashed and replayed from fixed initial states, so these numbers
           reproduce exactly between runs. Regenerate from the CLI with{' '}
           <code>python -m backend.evaluation</code>.
