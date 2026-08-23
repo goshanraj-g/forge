@@ -44,6 +44,15 @@ class SimulationContext:
         self._counter += 1
         return f"{prefix}-{self._counter:05d}"
 
+    def restore_id_counter(self, event_ids: list[str]) -> None:
+        """Continue generated ids after events restored from durable storage."""
+        suffixes = [
+            int(event_id.rsplit("-", 1)[1])
+            for event_id in event_ids
+            if event_id.rsplit("-", 1)[-1].isdigit()
+        ]
+        self._counter = max([self._counter, *suffixes])
+
 
 def overtime_overlap(
     start: float,

@@ -6,6 +6,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Protocol
 
+from pydantic import TypeAdapter
 from sqlmodel import Session, col, select
 
 from backend.agent.models import AgentDecisionRecord
@@ -17,7 +18,7 @@ from backend.persistence.tables import (
     FactorySnapshotRow,
     ScheduleRecordRow,
 )
-from backend.simulator.events import BaseEvent
+from backend.simulator.events import BaseEvent, FactoryEvent, sort_events
 from backend.simulator.models import ProductionJob
 from backend.simulator.state import FactoryState
 
@@ -27,15 +28,28 @@ class PersistenceBatch:
     factory_name: str | None = None
     state: FactoryState | None = None
     events: list[BaseEvent] = field(default_factory=list)
+    event_stage: str = "applied"
     schedule: list[ProductionJob] | None = None
     decision: AgentDecisionRecord | None = None
     evaluation: EvaluationResult | None = None
+
+
+@dataclass(frozen=True)
+class FactoryRecovery:
+    state: FactoryState
+    pending: list[BaseEvent]
+    log: list[BaseEvent]
+
+
+EVENT_ADAPTER: TypeAdapter[FactoryEvent] = TypeAdapter(FactoryEvent)
 
 
 class Repository(Protocol):
     def save(self, batch: PersistenceBatch) -> None: ...
 
     def latest_snapshot(self, factory_name: str) -> FactoryState | None: ...
+
+    def recover_factory(self, factory_name: str) -> FactoryRecovery | None: ...
 
 
 class SQLRepository:
@@ -47,6 +61,8 @@ class SQLRepository:
         with self._sessions() as session, session.begin():
             state = batch.state
             factory_name = state.name if state is not None else batch.factory_name
+            if batch.schedule is not None and state is None:
+                raise ValueError("state is required to save a schedule")
             if state is not None:
                 session.add(
                     FactorySnapshotRow(
@@ -80,6 +96,7 @@ class SQLRepository:
                         factory_name=str(factory_name),
                         event_id=event.id,
                         event_type=str(event.type),
+                        event_stage=batch.event_stage,
                         simulation_hour=event.sim_hour,
                         payload=event.model_dump(mode="json"),
                     )
@@ -115,7 +132,33 @@ class SQLRepository:
             statement = (
                 select(FactorySnapshotRow)
                 .where(FactorySnapshotRow.factory_name == factory_name)
-                .order_by(col(FactorySnapshotRow.created_at).desc())
+                .order_by(col(FactorySnapshotRow.sequence).desc())
             )
             row = session.exec(statement).first()
             return FactoryState.model_validate(row.payload) if row is not None else None
+
+    def recover_factory(self, factory_name: str) -> FactoryRecovery | None:
+        state = self.latest_snapshot(factory_name)
+        if state is None:
+            return None
+        with self._sessions() as session:
+            rows = session.exec(
+                select(EventRecordRow).where(
+                    EventRecordRow.factory_name == factory_name
+                )
+            ).all()
+
+        scheduled: dict[str, BaseEvent] = {}
+        applied: dict[str, BaseEvent] = {}
+        for row in rows:
+            event = EVENT_ADAPTER.validate_python(row.payload)
+            if row.event_stage == "scheduled":
+                scheduled[row.event_id] = event
+            elif row.event_stage == "applied":
+                applied[row.event_id] = event
+        pending = [event for key, event in scheduled.items() if key not in applied]
+        return FactoryRecovery(
+            state=state,
+            pending=sort_events(pending),
+            log=sort_events(list(applied.values())),
+        )

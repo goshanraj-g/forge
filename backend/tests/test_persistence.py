@@ -108,3 +108,68 @@ def test_failed_batch_rolls_back_its_snapshot(
         repository.save(PersistenceBatch(state=state, events=[event, event]))
 
     assert repository.latest_snapshot(state.name) is None
+
+
+def test_event_can_be_recorded_when_scheduled_and_applied(
+    sessions: Callable[[], Session],
+) -> None:
+    repository = SQLRepository(sessions)
+    state = factory_01()
+    event = MachineFailureEvent(
+        id="event-lifecycle",
+        sim_hour=1,
+        machine_id="M1",
+        duration_hours=2,
+    )
+
+    repository.save(
+        PersistenceBatch(
+            factory_name=state.name,
+            events=[event],
+            event_stage="scheduled",
+        )
+    )
+    repository.save(PersistenceBatch(state=state, events=[event]))
+
+
+def test_schedule_requires_its_factory_state(
+    sessions: Callable[[], Session],
+) -> None:
+    repository = SQLRepository(sessions)
+
+    with pytest.raises(ValueError, match="state is required"):
+        repository.save(PersistenceBatch(schedule=[]))
+
+
+def test_recovery_restores_pending_and_applied_event_lifecycles(
+    sessions: Callable[[], Session],
+) -> None:
+    repository = SQLRepository(sessions)
+    state = factory_01()
+    pending = MachineFailureEvent(
+        id="event-pending",
+        sim_hour=4,
+        machine_id="M1",
+        duration_hours=2,
+    )
+    applied = MachineFailureEvent(
+        id="event-applied",
+        sim_hour=2,
+        machine_id="M2",
+        duration_hours=1,
+    )
+    repository.save(PersistenceBatch(state=state))
+    repository.save(
+        PersistenceBatch(
+            factory_name=state.name,
+            events=[pending],
+            event_stage="scheduled",
+        )
+    )
+    repository.save(PersistenceBatch(factory_name=state.name, events=[applied]))
+
+    recovery = repository.recover_factory(state.name)
+
+    assert recovery is not None
+    assert [event.id for event in recovery.pending] == ["event-pending"]
+    assert [event.id for event in recovery.log] == ["event-applied"]

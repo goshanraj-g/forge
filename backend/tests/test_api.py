@@ -24,6 +24,9 @@ class RecordingRepository:
     def latest_snapshot(self, factory_name: str) -> FactoryState | None:
         return None
 
+    def recover_factory(self, factory_name: str) -> None:
+        return None
+
 
 test_repository = RecordingRepository()
 app.dependency_overrides[get_repository] = lambda: test_repository

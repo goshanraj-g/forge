@@ -33,13 +33,21 @@ def upgrade() -> None:
     op.execute("CREATE EXTENSION IF NOT EXISTS vector")
     op.create_table(
         "factory_snapshots",
-        *_record_columns(),
+        sa.Column("sequence", sa.BigInteger(), sa.Identity(), primary_key=True),
+        sa.Column("id", sa.String(), nullable=False, unique=True),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
         sa.Column("factory_name", sa.String(), nullable=False),
         sa.Column("simulation_hour", sa.Float(), nullable=False),
         sa.Column("schedule_version", sa.Integer(), nullable=False),
         sa.Column("snapshot_hash", sa.String(), nullable=False),
         sa.Column("payload", JSONB(), nullable=False),
     )
+    op.create_index("ix_factory_snapshots_id", "factory_snapshots", ["id"])
     op.create_index(
         "ix_factory_snapshots_factory_name", "factory_snapshots", ["factory_name"]
     )
@@ -52,15 +60,17 @@ def upgrade() -> None:
         sa.Column("factory_name", sa.String(), nullable=False),
         sa.Column("event_id", sa.String(), nullable=False),
         sa.Column("event_type", sa.String(), nullable=False),
+        sa.Column("event_stage", sa.String(), nullable=False),
         sa.Column("simulation_hour", sa.Float(), nullable=False),
         sa.Column("payload", JSONB(), nullable=False),
-        sa.UniqueConstraint("factory_name", "event_id"),
+        sa.UniqueConstraint("factory_name", "event_id", "event_stage"),
     )
     op.create_index(
         "ix_factory_events_factory_name", "factory_events", ["factory_name"]
     )
     op.create_index("ix_factory_events_event_id", "factory_events", ["event_id"])
     op.create_index("ix_factory_events_event_type", "factory_events", ["event_type"])
+    op.create_index("ix_factory_events_event_stage", "factory_events", ["event_stage"])
     op.create_table(
         "factory_schedules",
         *_record_columns(),

@@ -1,6 +1,6 @@
 """In-memory storage for active factory simulations."""
 
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from threading import RLock
 
@@ -14,12 +14,20 @@ class FactoryStore:
         self._locks: dict[str, RLock] = {}
         self._registry_lock = RLock()
 
-    def get(self, name: str) -> FactorySimulator:
+    def get(
+        self,
+        name: str,
+        simulator_loader: Callable[[str], FactorySimulator | None] | None = None,
+    ) -> FactorySimulator:
         """Return the active simulator, lazily activating a known factory."""
         with self._registry_lock:
             if name not in self._simulators:
-                state = load_factory(name)
-                self._simulators[name] = FactorySimulator(state)
+                recovered = (
+                    simulator_loader(name) if simulator_loader is not None else None
+                )
+                self._simulators[name] = recovered or FactorySimulator(
+                    load_factory(name)
+                )
                 self._locks[name] = RLock()
 
             return self._simulators[name]
@@ -37,8 +45,12 @@ class FactoryStore:
             self._locks.clear()
 
     @contextmanager
-    def locked(self, name: str) -> Iterator[FactorySimulator]:
-        simulator = self.get(name)
+    def locked(
+        self,
+        name: str,
+        simulator_loader: Callable[[str], FactorySimulator | None] | None = None,
+    ) -> Iterator[FactorySimulator]:
+        simulator = self.get(name, simulator_loader)
         with self._registry_lock:
             lock = self._locks[name]
         with lock:

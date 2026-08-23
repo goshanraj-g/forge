@@ -177,7 +177,11 @@ def schedule_factory_event(
         simulator,
         working,
         repository,
-        PersistenceBatch(factory_name=working.state.name, events=[event]),
+        PersistenceBatch(
+            factory_name=working.state.name,
+            events=[event],
+            event_stage="scheduled",
+        ),
     )
 
     return EventScheduledResponse(
@@ -197,7 +201,7 @@ async def investigate_factory_event(
     repository: PersistentRepository,
     request: InvestigateEventRequest,
 ) -> AgentDecisionRecord:
-    state, event = get_investigation_snapshot(name, request.event_id)
+    state, event = get_investigation_snapshot(name, request.event_id, repository)
 
     try:
         async with asyncio.timeout(timeout_seconds):
