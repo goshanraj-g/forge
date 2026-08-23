@@ -1,5 +1,6 @@
 import { Box, Button, Flex, Grid, Heading, Spinner, Text } from '@chakra-ui/react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Link, useRouterState } from '@tanstack/react-router'
 import {
   CalendarRange,
   ChevronDown,
@@ -27,13 +28,14 @@ const SOON_HOURS = 4
 const GRID_HOURS = [0, 6, 12, 18, 24]
 
 const navigation = [
-  { label: 'Overview', icon: CircleGauge, active: true },
-  { label: 'Schedule', icon: CalendarRange },
-  { label: 'Incidents', icon: TriangleAlert },
-  { label: 'Evaluations', icon: FlaskConical },
+  { label: 'Overview', icon: CircleGauge, to: '/' },
+  { label: 'Schedule', icon: CalendarRange, to: '/schedule' },
+  { label: 'Incidents', icon: TriangleAlert, to: '/incidents' },
+  { label: 'Evaluations', icon: FlaskConical, to: '/evaluations' },
 ]
 
 function App() {
+  const pathname = useRouterState({ select: (state) => state.location.pathname })
   const [incidentOpen, setIncidentOpen] = useState(false)
   const [scheduleOpen, setScheduleOpen] = useState(false)
   const [eventNotice, setEventNotice] = useState<string | null>(null)
@@ -107,11 +109,11 @@ function App() {
         </Flex>
 
         <Box as="nav" className="nav-list">
-          {navigation.map(({ label, icon: Icon, active }) => (
-            <Flex className={`nav-item${active ? ' active' : ''}`} key={label}>
+          {navigation.map(({ label, icon: Icon, to }) => (
+            <Link className={`nav-item${pathname === to ? ' active' : ''}`} key={label} to={to}>
               <Icon size={16} strokeWidth={1.8} />
               <Text>{label}</Text>
-            </Flex>
+            </Link>
           ))}
         </Box>
 

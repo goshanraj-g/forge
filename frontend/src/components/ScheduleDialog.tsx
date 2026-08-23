@@ -22,7 +22,9 @@ export function ScheduleDialog({ factoryName, state, onClose, onCommitted }: Sch
   const result = optimize.data
   const valid = result?.validation?.violations.length === 0
   const complete = result?.status === 'optimal' || result?.status === 'feasible'
-  const committable = Boolean(result && valid && complete)
+  const committable = Boolean(
+    result && valid && complete && result.unscheduled_orders.length === 0,
+  )
   const totalCost = result
     ? result.cost.late_penalty + result.cost.overtime + result.cost.changeover
     : 0

@@ -43,7 +43,7 @@ button { cursor: pointer; font-family: inherit; }
 .wordmark > p { color: var(--shell-ink-hi); font-size: 14px; font-variation-settings: 'wdth' 108; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
 .logo-mark { display: grid; width: 26px; height: 26px; place-items: center; color: #fff; border-radius: 3px; background: var(--forge); font-size: 14px; font-variation-settings: 'wdth' 112; font-weight: 800; }
 .nav-list { display: grid; gap: 1px; }
-.nav-item { height: 36px; align-items: center; gap: 11px; padding: 0 18px; border-left: 2px solid transparent; color: var(--shell-ink); font-size: 13px; }
+.nav-item { display: flex; height: 36px; align-items: center; gap: 11px; padding: 0 18px; border-left: 2px solid transparent; color: var(--shell-ink); font-size: 13px; text-decoration: none; }
 .nav-item:hover { color: var(--shell-ink-hi); background: rgba(255, 255, 255, 0.03); }
 .nav-item.active { color: var(--shell-ink-hi); border-left-color: var(--forge); background: rgba(255, 255, 255, 0.04); font-weight: 500; }
 .sidebar-footer { margin-top: auto; }
