@@ -1,13 +1,20 @@
 """FastAPI application"""
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
-from backend.api.dependencies import ActiveSimulator, LockedSimulator
+from backend.agent.models import AgentDecisionRecord
+from backend.agent.observability import configure_agent_observability
+from backend.agent.service import investigate_event
+from backend.api.dependencies import ActiveSimulator, AgentModel, LockedSimulator
 from backend.api.schemas import (
     CommitScheduleRequest,
     CommitScheduleResponse,
     EventScheduledResponse,
+    InvestigateEventRequest,
     RunUntilRequest,
     SimulationResponse,
     TickRequest,
@@ -24,9 +31,16 @@ class HealthResponse(BaseModel):
     service: str
 
 
+@asynccontextmanager
+async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    configure_agent_observability()
+    yield
+
+
 app = FastAPI(
     title="ForgeOps API",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
 
@@ -107,6 +121,32 @@ def schedule_factory_event(
     return EventScheduledResponse(
         event=event,
         pending_event_count=len(simulator.pending),
+    )
+
+
+@app.post(
+    "/factories/{name}/investigations",
+    response_model=AgentDecisionRecord,
+)
+async def investigate_factory_event(
+    simulator: ActiveSimulator,
+    model: AgentModel,
+    request: InvestigateEventRequest,
+) -> AgentDecisionRecord:
+    event = next(
+        (event for event in simulator.log if event.id == request.event_id),
+        None,
+    )
+    if event is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"processed event {request.event_id!r} was not found",
+        )
+
+    return await investigate_event(
+        simulator.state,
+        event,
+        model,
     )
 
 

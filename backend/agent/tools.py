@@ -49,7 +49,7 @@ def propose_schedule(
 ) -> ScheduleResult:
     """Generate a validated schedule candidate without commiting"""
     request = OptimizeRequest(
-        horizion_hours=72,
+        horizon_hours=72,
         bucket_hours=1,
         time_limit_seconds=5,
     )

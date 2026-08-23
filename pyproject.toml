@@ -5,6 +5,7 @@ description = "Factory decision intelligence through simulation, optimization, a
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.115",
+    "langfuse>=4.0",
     "numpy>=2.0.2,<2.5",
     "ortools>=9.11",
     "pydantic>=2.7",

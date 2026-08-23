@@ -34,6 +34,10 @@ class EventScheduledResponse(BaseModel):
     pending_event_count: int
 
 
+class InvestigateEventRequest(BaseModel):
+    event_id: str = Field(min_length=1)
+
+
 class CommitScheduleRequest(BaseModel):
     expected_version: NonNegativeInt
     jobs: list[ProductionJob]
