@@ -97,6 +97,22 @@ def test_run_until_rejects_explicit_zero_step() -> None:
         simulator.run_until(1, step=0)
 
 
+def test_run_until_reaches_hour_when_step_does_not_divide_interval() -> None:
+    simulator = FactorySimulator(production_state())
+
+    simulator.run_until(1, step=0.3)
+
+    assert simulator.state.sim_hour == 1
+
+
+def test_run_until_normalizes_subprecision_target_hour() -> None:
+    simulator = FactorySimulator(production_state())
+
+    simulator.run_until(1.0000001, step=0.3)
+
+    assert simulator.state.sim_hour == 1
+
+
 def test_overtime_overlap_repeats_each_day() -> None:
     assert overtime_overlap(15, 17) == 1
     assert overtime_overlap(23, 25) == 1

@@ -446,14 +446,14 @@ class FactorySimulator:
         actual_step = self.context.step_hours if step is None else step
         if actual_step <= 0:
             raise ValueError("step must be positive")
-        if hour < self.state.sim_hour:
+        target_hour = q(hour)
+        if target_hour < self.state.sim_hour:
             raise ValueError("cannot run backwards")
 
         log_start = len(self.log)
-        remaining = hour - self.state.sim_hour
-        steps = round(remaining / actual_step)
-        for _ in range(steps):
-            self.tick(actual_step)
+        while self.state.sim_hour < target_hour:
+            remaining = q(target_hour - self.state.sim_hour)
+            self.tick(min(actual_step, remaining))
         return self.log[log_start:]
 
     def finalize(self) -> None:

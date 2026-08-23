@@ -5,12 +5,17 @@ from backend.evaluation.models import (
     EvaluationResult,
     EvaluationScenario,
 )
-from backend.evaluation.runner import compare_baselines, run_scenario
+from backend.evaluation.runner import (
+    compare_baselines,
+    compare_with_agent,
+    run_scenario,
+)
 
 __all__ = [
     "EvaluationMetrics",
     "EvaluationResult",
     "EvaluationScenario",
     "compare_baselines",
+    "compare_with_agent",
     "run_scenario",
 ]

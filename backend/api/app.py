@@ -31,7 +31,7 @@ from backend.api.schemas import (
     SimulationResponse,
     TickRequest,
 )
-from backend.evaluation.runner import compare_baselines
+from backend.evaluation.runner import compare_baselines, compare_with_agent
 from backend.evaluation.scenarios import load_scenarios, scenario_hash
 from backend.logging import configure_logging
 from backend.optimizer.models import OptimizeRequest, ScheduleResult
@@ -39,7 +39,7 @@ from backend.optimizer.solver import optimize_schedule
 from backend.optimizer.validator import validate_schedule
 from backend.persistence.repository import PersistenceBatch
 from backend.simulator.engine import FactorySimulator
-from backend.simulator.events import InjectableEvent
+from backend.simulator.events import BaseEvent, InjectableEvent
 from backend.simulator.state import FactoryState
 
 logger = structlog.get_logger(__name__)
@@ -339,4 +339,52 @@ def compare_evaluation_baselines() -> EvaluationComparisonResponse:
             for scenario in scenarios
         ],
         results=compare_baselines(scenarios),
+    )
+
+
+@app.post(
+    "/evaluations/agent",
+    response_model=EvaluationComparisonResponse,
+)
+def compare_agent_evaluation(
+    model: AgentModel,
+    timeout_seconds: AgentTimeout,
+) -> EvaluationComparisonResponse:
+    """Run the real agent and CP-SAT against every evaluation scenario.
+
+    This is opt-in because it performs billable, nondeterministic model calls.
+    FastAPI executes this synchronous route in a worker thread, where each
+    asynchronous investigation can safely own its event loop.
+    """
+    scenarios = load_scenarios()
+
+    async def investigate_with_timeout(
+        state: FactoryState,
+        event: BaseEvent,
+    ) -> AgentDecisionRecord:
+        try:
+            async with asyncio.timeout(timeout_seconds):
+                return await investigate_event(state, event, model)
+        except TimeoutError as error:
+            raise HTTPException(
+                status_code=504,
+                detail=f"agent evaluation timed out for event {event.id!r}",
+            ) from error
+
+    def investigator(state: FactoryState, event: BaseEvent) -> AgentDecisionRecord:
+        return asyncio.run(investigate_with_timeout(state, event))
+
+    return EvaluationComparisonResponse(
+        scenarios=[
+            EvaluationScenarioSummary(
+                id=scenario.id,
+                description=scenario.description,
+                factory_name=scenario.factory_name,
+                horizon_hour=scenario.horizon_hour,
+                scenario_hash=scenario_hash(scenario),
+                event_count=len(scenario.events),
+            )
+            for scenario in scenarios
+        ],
+        results=compare_with_agent(scenarios, investigator),
     )

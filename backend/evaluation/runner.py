@@ -10,16 +10,31 @@ from backend.evaluation.models import (
     EvaluationResult,
     EvaluationScenario,
 )
-from backend.evaluation.policies import BASELINE_POLICIES, EvaluationPolicy
+from backend.evaluation.policies import (
+    BASELINE_POLICIES,
+    AgentPolicy,
+    EvaluationPolicy,
+    Investigator,
+)
 from backend.evaluation.scenarios import scenario_hash
 from backend.optimizer.baseline import build_baseline_schedule
 from backend.optimizer.models import OptimizeRequest, ScheduleResult
+from backend.optimizer.solver import optimize_schedule
 from backend.simulator.engine import FactorySimulator, SimulationContext
 from backend.simulator.models import OrderStatus, ProductionJob, q
 from backend.simulator.seed import load_factory
 from backend.simulator.state import FactoryState
 
 Scheduler = Callable[[FactoryState, OptimizeRequest | None], ScheduleResult]
+
+
+def evaluation_scheduler(
+    state: FactoryState,
+    request: OptimizeRequest | None = None,
+) -> ScheduleResult:
+    """Run production CP-SAT with an evaluation-grade solve budget."""
+    options = request or OptimizeRequest(time_limit_seconds=60)
+    return optimize_schedule(state, options)
 
 
 def _commit(state: FactoryState, jobs: list[ProductionJob]) -> None:
@@ -96,6 +111,7 @@ def run_scenario(
     policy: EvaluationPolicy,
     *,
     scheduler: Scheduler = build_baseline_schedule,
+    initial_schedule: ScheduleResult | None = None,
 ) -> EvaluationResult:
     """Run one policy from a clean named state and return reproducible metrics."""
     state = _prepare_state(scenario)
@@ -109,7 +125,17 @@ def run_scenario(
     schedule_versions: list[int] = []
     decisions: list[EvaluationDecisionTrace] = []
 
-    committed, schedule_violations = _schedule(state, scheduler)
+    if initial_schedule is None:
+        committed, schedule_violations = _schedule(state, scheduler)
+    else:
+        schedule_violations = (
+            len(initial_schedule.validation.violations)
+            if initial_schedule.validation is not None
+            else 0
+        )
+        committed = initial_schedule.is_committable
+        if committed:
+            _commit(state, initial_schedule.jobs)
     violations += schedule_violations
     if committed:
         schedule_versions.append(state.schedule_version)
@@ -169,8 +195,53 @@ def run_scenario(
 def compare_baselines(
     scenarios: Iterable[EvaluationScenario],
 ) -> list[EvaluationResult]:
-    return [
-        run_scenario(scenario, policy)
-        for scenario in scenarios
-        for policy in BASELINE_POLICIES
-    ]
+    """Compare fixed decision policies using the production CP-SAT scheduler."""
+    results: list[EvaluationResult] = []
+    for scenario in scenarios:
+        initial_schedule = _initial_cp_sat_schedule(scenario)
+        results.extend(
+            run_scenario(
+                scenario,
+                policy,
+                scheduler=evaluation_scheduler,
+                initial_schedule=initial_schedule,
+            )
+            for policy in BASELINE_POLICIES
+        )
+    return results
+
+
+def compare_with_agent(
+    scenarios: Iterable[EvaluationScenario],
+    investigator: Investigator,
+) -> list[EvaluationResult]:
+    """Add the real agent decision policy to the CP-SAT comparison."""
+    scenario_list = list(scenarios)
+    results: list[EvaluationResult] = []
+    for scenario in scenario_list:
+        initial_schedule = _initial_cp_sat_schedule(scenario)
+        policies = (*BASELINE_POLICIES, AgentPolicy(investigator))
+        results.extend(
+            run_scenario(
+                scenario,
+                policy,
+                scheduler=evaluation_scheduler,
+                initial_schedule=initial_schedule,
+            )
+            for policy in policies
+        )
+    return results
+
+
+def _initial_cp_sat_schedule(scenario: EvaluationScenario) -> ScheduleResult:
+    """Solve once so every policy starts from the identical production plan."""
+    # Evaluation favors a trustworthy comparison over API latency. The normal
+    # interactive solver limit is intentionally shorter and can expire under CI
+    # contention before finding the first feasible plan.
+    result = evaluation_scheduler(_prepare_state(scenario))
+    if not result.is_committable:
+        raise RuntimeError(
+            f"CP-SAT could not produce an initial schedule for {scenario.id!r}: "
+            f"{result.status}"
+        )
+    return result

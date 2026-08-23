@@ -120,6 +120,26 @@ def test_tick_rejects_nonpositive_step() -> None:
     assert response.status_code == 422
 
 
+def test_tick_rejects_nonfinite_step() -> None:
+    response = client.post(
+        "/factories/factory_01/tick",
+        content='{"step_hours": 1e999}',
+        headers={"content-type": "application/json"},
+    )
+
+    assert response.status_code == 422
+
+
+def test_run_until_rejects_nonfinite_hour() -> None:
+    response = client.post(
+        "/factories/factory_01/run-until",
+        content='{"hour": 1e999}',
+        headers={"content-type": "application/json"},
+    )
+
+    assert response.status_code == 422
+
+
 def test_run_until_advances_to_requested_hour() -> None:
     factory_store.clear()
 

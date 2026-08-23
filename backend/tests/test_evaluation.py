@@ -4,12 +4,28 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
+from backend.agent.models import (
+    AgentDecision,
+    AgentDecisionRecord,
+    DecisionSeverity,
+    DecisionStatus,
+)
 from backend.evaluation import __main__ as evaluation_cli
 from backend.evaluation.models import EvaluationScenario
-from backend.evaluation.policies import AlwaysReplanPolicy, NoOpPolicy, OraclePolicy
-from backend.evaluation.runner import compare_baselines, run_scenario
+from backend.evaluation.policies import (
+    AgentPolicy,
+    AlwaysReplanPolicy,
+    NoOpPolicy,
+    OraclePolicy,
+)
+from backend.evaluation.runner import (
+    compare_baselines,
+    compare_with_agent,
+    run_scenario,
+)
 from backend.evaluation.scenarios import load_scenario, load_scenarios, scenario_hash
-from backend.simulator.events import MachineFailureEvent
+from backend.simulator.events import BaseEvent, MachineFailureEvent
+from backend.simulator.state import FactoryState
 
 
 def _scenario(**updates: object) -> EvaluationScenario:
@@ -32,6 +48,35 @@ def _scenario(**updates: object) -> EvaluationScenario:
     }
     values.update(updates)
     return EvaluationScenario.model_validate(values)
+
+
+def _agent_record(
+    state: FactoryState,
+    event: BaseEvent,
+    *,
+    should_replan: bool = True,
+) -> AgentDecisionRecord:
+    status = (
+        DecisionStatus.REPLAN_RECOMMENDED if should_replan else DecisionStatus.NO_ACTION
+    )
+    return AgentDecisionRecord(
+        factory_name=state.name,
+        simulation_hour=state.sim_hour,
+        schedule_version=state.schedule_version,
+        state_snapshot_hash=state.snapshot_hash(),
+        trigger_event_id=event.id,
+        trigger_event_type=str(event.type),
+        prompt_version="test",
+        model_name="deterministic-test-model",
+        decision=AgentDecision(
+            status=status,
+            severity=DecisionSeverity.HIGH if should_replan else DecisionSeverity.INFO,
+            summary="Deterministic evaluation decision.",
+            explanation="Produced by the injected test investigator.",
+            should_replan=should_replan,
+            requires_human_approval=should_replan,
+        ),
+    )
 
 
 def test_scenario_files_are_valid_and_have_unique_ids() -> None:
@@ -159,6 +204,34 @@ def test_oracle_uses_scenario_ground_truth() -> None:
 
     assert ignored.decision_event_ids == []
     assert selected.decision_event_ids == ["event-001"]
+
+
+def test_agent_policy_uses_injected_investigator_and_counts_calls() -> None:
+    policy = AgentPolicy(lambda state, event: _agent_record(state, event))
+
+    result = run_scenario(_scenario(), policy)
+
+    assert result.policy_name == "agent"
+    assert result.metrics.model_calls == 1
+    assert result.metrics.replans == 1
+    assert result.decision_event_ids == ["event-001"]
+    assert policy.records[0].trigger_event_id == "event-001"
+
+
+def test_agent_comparison_includes_agent_and_cp_sat_baselines() -> None:
+    results = compare_with_agent(
+        [_scenario()],
+        lambda state, event: _agent_record(state, event, should_replan=False),
+    )
+
+    assert {result.policy_name for result in results} == {
+        "no-op",
+        "always-replan",
+        "oracle",
+        "agent",
+    }
+    agent = next(result for result in results if result.policy_name == "agent")
+    assert agent.metrics.model_calls == 1
 
 
 def test_runs_are_isolated_and_repeatable() -> None:
