@@ -15,6 +15,7 @@ import {
 import { useState } from 'react'
 
 import { IncidentDialog } from './components/IncidentDialog'
+import { ScheduleDialog } from './components/ScheduleDialog'
 import { getFactory, tickFactory } from './lib/api'
 import type { FactoryState, MachineStatus } from './types/factory'
 
@@ -33,6 +34,7 @@ const navigation = [
 
 function App() {
   const [incidentOpen, setIncidentOpen] = useState(false)
+  const [scheduleOpen, setScheduleOpen] = useState(false)
   const [eventNotice, setEventNotice] = useState<string | null>(null)
   const queryClient = useQueryClient()
   const factoryQuery = useQuery({
@@ -262,9 +264,10 @@ function App() {
               <Text className="eyebrow"><Activity size={13} /> System activity</Text>
               <Text>{unavailable.length ? `${unavailable.length} production lines require attention` : 'No active incidents. Factory state is healthy.'}</Text>
             </Box>
-            <Button size="sm" variant="outline" onClick={() => setIncidentOpen(true)}>
-              <TriangleAlert size={14} /> Inject failure
-            </Button>
+            <Flex gap="2">
+              <Button size="sm" variant="outline" onClick={() => setIncidentOpen(true)}><TriangleAlert size={14} /> Inject failure</Button>
+              <Button size="sm" className="optimize-button" onClick={() => setScheduleOpen(true)}><SparklesIcon /> Optimize schedule</Button>
+            </Flex>
           </Flex>
         </Box>
       </Box>
@@ -282,8 +285,24 @@ function App() {
           }}
         />
       )}
+      {scheduleOpen && (
+        <ScheduleDialog
+          factoryName={FACTORY_NAME}
+          state={state}
+          onClose={() => setScheduleOpen(false)}
+          onCommitted={(committedState) => {
+            queryClient.setQueryData<FactoryState>(['factory', FACTORY_NAME], committedState)
+            setScheduleOpen(false)
+            setEventNotice(`Schedule v${committedState.schedule_version} committed with ${Object.keys(committedState.jobs).length} jobs`)
+          }}
+        />
+      )}
     </Grid>
   )
+}
+
+function SparklesIcon() {
+  return <FlaskConical size={14} />
 }
 
 function StatusLight({ status }: { status: MachineStatus }) {

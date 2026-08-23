@@ -34,11 +34,53 @@ export interface FactoryState {
   machines: Record<string, Machine>
   orders: Record<string, Order>
   inventory: Record<string, InventoryItem>
-  jobs: Record<string, unknown>
+  jobs: Record<string, ProductionJob>
   overtime_hours: number
   changeover_hours: number
   production_cost: number
   late_penalty_cost: number
+}
+
+export interface ProductionJob {
+  id: string
+  order_id: string
+  machine_id: string
+  product_id: string
+  start_hour: number
+  end_hour: number
+  quantity: number
+  schedule_version: number
+  produced: number
+}
+
+export interface ScheduleViolation {
+  code: string
+  message: string
+  job_ids: string[]
+  order_ids: string[]
+}
+
+export interface ScheduleResult {
+  status: 'optimal' | 'feasible' | 'partial' | 'needs_information' | 'infeasible' | 'unknown' | 'error'
+  jobs: ProductionJob[]
+  unscheduled_orders: Array<{
+    order_id: string
+    reason_code: string
+    explanation: string
+    required_action: string | null
+  }>
+  cost: { late_penalty: number; overtime: number; changeover: number }
+  optimality_gap: number | null
+  solve_seconds: number
+  time_limit_seconds: number
+  relaxed_constraints: string[]
+  notes: string[]
+  validation: { violations: ScheduleViolation[] } | null
+}
+
+export interface CommitScheduleResponse {
+  state: FactoryState
+  validation: { violations: ScheduleViolation[] }
 }
 
 export interface FactoryEvent {

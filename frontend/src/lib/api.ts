@@ -1,6 +1,9 @@
 import type {
   EventScheduledResponse,
   FactoryState,
+  CommitScheduleResponse,
+  ProductionJob,
+  ScheduleResult,
   SimulationResponse,
 } from '../types/factory'
 
@@ -27,6 +30,32 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   return response.json() as Promise<T>
+}
+
+export function optimizeFactory(name: string): Promise<ScheduleResult> {
+  return request(`/factories/${name}/optimize`, {
+    method: 'POST',
+    body: JSON.stringify({
+      horizon_hours: 72,
+      bucket_hours: 1,
+      time_limit_seconds: 10,
+    }),
+  })
+}
+
+export function commitSchedule(
+  name: string,
+  expectedVersion: number,
+  jobs: ProductionJob[],
+): Promise<CommitScheduleResponse> {
+  return request(`/factories/${name}/schedules/commit`, {
+    method: 'POST',
+    body: JSON.stringify({
+      expected_version: expectedVersion,
+      jobs,
+      hard_deadline_orders: [],
+    }),
+  })
 }
 
 export function getFactory(name: string): Promise<FactoryState> {
