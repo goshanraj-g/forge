@@ -7,9 +7,10 @@ interface ActivityLogProps {
   events: FactoryEvent[]
   onInjectFailure: () => void
   onOptimize: () => void
+  onInvestigate: (event: FactoryEvent) => void
 }
 
-export function ActivityLog({ events, onInjectFailure, onOptimize }: ActivityLogProps) {
+export function ActivityLog({ events, onInjectFailure, onOptimize, onInvestigate }: ActivityLogProps) {
   return (
     <section className="activity-panel">
       <Flex className="activity-head">
@@ -36,6 +37,7 @@ export function ActivityLog({ events, onInjectFailure, onOptimize }: ActivityLog
                 title={detail.title}
                 detail={detail.detail}
                 tone={detail.tone}
+                onInvestigate={() => onInvestigate(event)}
               />
             )
           })}
@@ -45,12 +47,13 @@ export function ActivityLog({ events, onInjectFailure, onOptimize }: ActivityLog
   )
 }
 
-function GridRow({ hour, title, detail, tone }: { hour: number; title: string; detail: string; tone: string }) {
+function GridRow({ hour, title, detail, tone, onInvestigate }: { hour: number; title: string; detail: string; tone: string; onInvestigate: () => void }) {
   return (
     <Flex className="activity-row">
       <Text className="activity-hour">H{hour.toFixed(2)}</Text>
       <i className={`activity-dot ${tone}`} aria-hidden="true" />
       <Box><Text>{title}</Text><Text>{detail}</Text></Box>
+      <button className="investigate-action" type="button" onClick={onInvestigate}>Investigate</button>
     </Flex>
   )
 }
