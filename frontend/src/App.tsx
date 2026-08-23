@@ -15,10 +15,11 @@ import {
 import { useState } from 'react'
 
 import { ActivityLog } from './components/ActivityLog'
+import { DecisionDialog } from './components/DecisionDialog'
 import { IncidentDialog } from './components/IncidentDialog'
 import { ScheduleDialog } from './components/ScheduleDialog'
 import { ScheduleTimeline } from './components/ScheduleTimeline'
-import { getFactory, tickFactory } from './lib/api'
+import { getFactory, investigateEvent, tickFactory } from './lib/api'
 import type { FactoryEvent, FactoryState, MachineStatus } from './types/factory'
 
 const FACTORY_NAME = 'factory_01'
@@ -40,6 +41,7 @@ function App() {
   const [scheduleOpen, setScheduleOpen] = useState(false)
   const [eventNotice, setEventNotice] = useState<string | null>(null)
   const [activityEvents, setActivityEvents] = useState<FactoryEvent[]>([])
+  const [investigationEvent, setInvestigationEvent] = useState<FactoryEvent | null>(null)
   const queryClient = useQueryClient()
   const factoryQuery = useQuery({
     queryKey: ['factory', FACTORY_NAME],
@@ -53,6 +55,9 @@ function App() {
         setActivityEvents((current) => [...events.toReversed(), ...current].slice(0, 30))
       }
     },
+  })
+  const investigationMutation = useMutation({
+    mutationFn: (eventId: string) => investigateEvent(FACTORY_NAME, eventId),
   })
 
   if (factoryQuery.isPending) {
@@ -276,6 +281,11 @@ function App() {
             events={activityEvents}
             onInjectFailure={() => setIncidentOpen(true)}
             onOptimize={() => setScheduleOpen(true)}
+            onInvestigate={(event) => {
+              setInvestigationEvent(event)
+              investigationMutation.reset()
+              investigationMutation.mutate(event.id)
+            }}
           />
         </Box>
       </Box>
@@ -302,6 +312,19 @@ function App() {
             queryClient.setQueryData<FactoryState>(['factory', FACTORY_NAME], committedState)
             setScheduleOpen(false)
             setEventNotice(`Schedule v${committedState.schedule_version} committed with ${Object.keys(committedState.jobs).length} jobs`)
+          }}
+        />
+      )}
+      {investigationEvent && (
+        <DecisionDialog
+          event={investigationEvent}
+          result={investigationMutation.data}
+          loading={investigationMutation.isPending}
+          error={investigationMutation.error ?? undefined}
+          onClose={() => setInvestigationEvent(null)}
+          onReplan={() => {
+            setInvestigationEvent(null)
+            setScheduleOpen(true)
           }}
         />
       )}

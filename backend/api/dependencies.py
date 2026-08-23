@@ -4,9 +4,13 @@ from collections.abc import Iterator
 from typing import Annotated
 
 from fastapi import Depends, HTTPException
+from pydantic_ai.models import Model
 
+from backend.agent.config import AgentSettings, build_production_model
 from backend.api.store import factory_store
 from backend.simulator.engine import FactorySimulator
+from backend.simulator.events import BaseEvent
+from backend.simulator.state import FactoryState
 
 
 def get_simulator(name: str) -> FactorySimulator:
@@ -30,6 +34,43 @@ def get_locked_simulator(name: str) -> Iterator[FactorySimulator]:
         ) from error
 
 
+def get_investigation_snapshot(
+    name: str,
+    event_id: str,
+) -> tuple[FactoryState, BaseEvent]:
+    """Atomically copy the state and processed event used by an investigation."""
+    try:
+        with factory_store.locked(name) as simulator:
+            event = next(
+                (event for event in reversed(simulator.log) if event.id == event_id),
+                None,
+            )
+            if event is None:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"processed event {event_id!r} was not found",
+                )
+
+            return simulator.state.clone(), event.model_copy(deep=True)
+    except KeyError as error:
+        raise HTTPException(
+            status_code=404,
+            detail=f"unknown factory {name!r}",
+        ) from error
+
+
+def get_agent_model() -> Model:
+    try:
+        settings = AgentSettings.from_environment()
+    except RuntimeError as error:
+        raise HTTPException(
+            status_code=503,
+            detail=str(error),
+        ) from error
+
+    return build_production_model(settings)
+
+
 ActiveSimulator = Annotated[
     FactorySimulator,
     Depends(get_simulator),
@@ -38,4 +79,9 @@ ActiveSimulator = Annotated[
 LockedSimulator = Annotated[
     FactorySimulator,
     Depends(get_locked_simulator),
+]
+
+AgentModel = Annotated[
+    Model,
+    Depends(get_agent_model),
 ]

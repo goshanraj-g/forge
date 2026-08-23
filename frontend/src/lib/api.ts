@@ -1,4 +1,5 @@
 import type {
+  AgentDecisionRecord,
   EventScheduledResponse,
   FactoryState,
   CommitScheduleResponse,
@@ -8,6 +9,16 @@ import type {
 } from '../types/factory'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api'
+
+export function investigateEvent(
+  name: string,
+  eventId: string,
+): Promise<AgentDecisionRecord> {
+  return request(`/factories/${name}/investigations`, {
+    method: 'POST',
+    body: JSON.stringify({ event_id: eventId }),
+  })
+}
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {

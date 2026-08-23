@@ -105,3 +105,23 @@ export interface EventScheduledResponse {
   event: MachineFailureEvent
   pending_event_count: number
 }
+
+export interface AgentDecisionRecord {
+  factory_name: string
+  simulation_hour: number
+  schedule_version: number
+  state_snapshot_hash: string
+  trigger_event_id: string
+  trigger_event_type: string
+  decision: {
+    status: 'no_action' | 'replan_recommended' | 'needs_information' | 'escalate'
+    severity: 'info' | 'low' | 'medium' | 'high' | 'critical'
+    summary: string
+    explanation: string
+    affected_order_ids: string[]
+    affected_machine_ids: string[]
+    missing_information: string[]
+    should_replan: boolean
+    requires_human_approval: boolean
+  }
+}

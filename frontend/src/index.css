@@ -151,6 +151,21 @@ button { cursor: pointer; font-family: inherit; }
 .activity-dot.danger { background: var(--down); }
 .activity-row > div p:first-child { color: var(--ink); font-size: 12px; font-weight: 500; }
 .activity-row > div p:last-child { margin-top: 2px; color: var(--ink-soft); font-family: var(--mono); font-size: 10px; }
+.investigate-action { margin-left: auto; color: var(--forge); background: transparent; font-size: 11px; font-weight: 600; cursor: pointer; }
+.decision-dialog { width: min(620px, 100%); max-height: calc(100vh - 40px); overflow: auto; padding: 22px; border: 1px solid var(--rule); border-radius: 4px; background: var(--surface); box-shadow: 0 24px 70px rgba(8, 12, 15, 0.28); }
+.decision-dialog .eyebrow { display: flex; align-items: center; gap: 6px; }
+.decision-loading { min-height: 190px; align-items: center; justify-content: center; gap: 10px; color: var(--ink-mid); font-size: 13px; }
+.decision-verdict { align-items: center; gap: 10px; margin-top: 22px; color: var(--ink-mid); font-size: 12px; text-transform: capitalize; }
+.severity { padding: 3px 7px; border-radius: 2px; font-family: var(--mono); font-size: 9px; font-weight: 600; text-transform: uppercase; }
+.severity-info, .severity-low { color: #165f46; background: #e5f4ed; }
+.severity-medium { color: #805716; background: #fbf1dd; }
+.severity-high, .severity-critical { color: #8c281f; background: #f9e8e5; }
+.decision-summary { margin-top: 12px; font-size: 19px; line-height: 1.35; }
+.decision-explanation { margin-top: 10px; color: var(--ink-mid); font-size: 13px; line-height: 1.65; }
+.decision-evidence { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-top: 20px; padding: 16px; border: 1px solid var(--rule-soft); background: var(--wash); }
+.decision-evidence > div:last-child:nth-child(odd) { grid-column: 1 / -1; }
+.decision-evidence > div > p:last-child { margin-top: 5px; color: var(--ink-mid); font-family: var(--mono); font-size: 11px; line-height: 1.45; }
+.decision-meta { gap: 16px; margin-top: 14px; color: var(--ink-soft); font-family: var(--mono); font-size: 9px; text-transform: uppercase; }
 .event-notice { margin-top: 18px; padding: 11px 14px; color: #165f46; border-left: 2px solid var(--ok); border-radius: 0 3px 3px 0; background: #edf8f3; font-size: 12px; }
 
 .dialog-backdrop { position: fixed; inset: 0; z-index: 50; align-items: center; justify-content: center; padding: 20px; background: rgba(8, 12, 15, 0.62); backdrop-filter: blur(2px); }
