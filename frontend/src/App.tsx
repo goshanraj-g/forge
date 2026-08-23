@@ -1,7 +1,6 @@
 import { Box, Button, Flex, Grid, Heading, Spinner, Text } from '@chakra-ui/react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  Activity,
   CalendarRange,
   ChevronDown,
   CircleGauge,
@@ -14,11 +13,12 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 
+import { ActivityLog } from './components/ActivityLog'
 import { IncidentDialog } from './components/IncidentDialog'
 import { ScheduleDialog } from './components/ScheduleDialog'
 import { ScheduleTimeline } from './components/ScheduleTimeline'
 import { getFactory, tickFactory } from './lib/api'
-import type { FactoryState, MachineStatus } from './types/factory'
+import type { FactoryEvent, FactoryState, MachineStatus } from './types/factory'
 
 const FACTORY_NAME = 'factory_01'
 const STEP_HOURS = 0.25
@@ -37,6 +37,7 @@ function App() {
   const [incidentOpen, setIncidentOpen] = useState(false)
   const [scheduleOpen, setScheduleOpen] = useState(false)
   const [eventNotice, setEventNotice] = useState<string | null>(null)
+  const [activityEvents, setActivityEvents] = useState<FactoryEvent[]>([])
   const queryClient = useQueryClient()
   const factoryQuery = useQuery({
     queryKey: ['factory', FACTORY_NAME],
@@ -44,8 +45,11 @@ function App() {
   })
   const tickMutation = useMutation({
     mutationFn: (stepHours: number) => tickFactory(FACTORY_NAME, stepHours),
-    onSuccess: ({ state }) => {
+    onSuccess: ({ state, events }) => {
       queryClient.setQueryData<FactoryState>(['factory', FACTORY_NAME], state)
+      if (events.length) {
+        setActivityEvents((current) => [...events.toReversed(), ...current].slice(0, 30))
+      }
     },
   })
 
@@ -266,16 +270,11 @@ function App() {
 
           {eventNotice && <Text className="event-notice">{eventNotice}</Text>}
 
-          <Flex className="activity-bar">
-            <Box>
-              <Text className="eyebrow"><Activity size={13} /> System activity</Text>
-              <Text>{unavailable.length ? `${unavailable.length} production lines require attention` : 'No active incidents. Factory state is healthy.'}</Text>
-            </Box>
-            <Flex gap="2">
-              <Button size="sm" variant="outline" onClick={() => setIncidentOpen(true)}><TriangleAlert size={14} /> Inject failure</Button>
-              <Button size="sm" className="optimize-button" onClick={() => setScheduleOpen(true)}><SparklesIcon /> Optimize schedule</Button>
-            </Flex>
-          </Flex>
+          <ActivityLog
+            events={activityEvents}
+            onInjectFailure={() => setIncidentOpen(true)}
+            onOptimize={() => setScheduleOpen(true)}
+          />
         </Box>
       </Box>
       {incidentOpen && (
@@ -306,10 +305,6 @@ function App() {
       )}
     </Grid>
   )
-}
-
-function SparklesIcon() {
-  return <FlaskConical size={14} />
 }
 
 function StatusLight({ status }: { status: MachineStatus }) {

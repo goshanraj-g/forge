@@ -137,9 +137,20 @@ button { cursor: pointer; font-family: inherit; }
 .status-maintenance i { background: var(--warn); box-shadow: 0 0 0 3px rgba(176, 118, 26, 0.14); }
 .status-down i { background: var(--down); box-shadow: 0 0 0 3px rgba(163, 33, 24, 0.16); }
 
-.activity-bar { align-items: center; justify-content: space-between; gap: 16px; margin-top: 18px; padding: 14px 20px; color: var(--ink-mid); border: 1px solid var(--rule); border-radius: 4px; background: var(--surface); font-size: 13px; }
-.activity-bar .eyebrow { display: inline-flex; align-items: center; gap: 8px; }
-.activity-bar > div { display: grid; gap: 4px; }
+.activity-panel { margin-top: 18px; overflow: hidden; color: var(--ink-mid); border: 1px solid var(--rule); border-radius: 4px; background: var(--surface); }
+.activity-head { min-height: 62px; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 20px; }
+.activity-head .eyebrow { display: inline-flex; align-items: center; gap: 8px; }
+.activity-summary { margin-top: 4px; font-size: 13px; }
+.activity-list { border-top: 1px solid var(--rule-soft); }
+.activity-row { min-height: 52px; align-items: center; gap: 12px; padding: 8px 20px; border-top: 1px solid var(--rule-soft); }
+.activity-row:first-child { border-top: 0; }
+.activity-hour { width: 52px; flex: none; color: var(--ink-soft); font-family: var(--mono); font-size: 10px; }
+.activity-dot { width: 7px; height: 7px; flex: none; border-radius: 1px; background: #9aa5ac; }
+.activity-dot.success { background: var(--ok); }
+.activity-dot.warning { background: var(--warn); }
+.activity-dot.danger { background: var(--down); }
+.activity-row > div p:first-child { color: var(--ink); font-size: 12px; font-weight: 500; }
+.activity-row > div p:last-child { margin-top: 2px; color: var(--ink-soft); font-family: var(--mono); font-size: 10px; }
 .event-notice { margin-top: 18px; padding: 11px 14px; color: #165f46; border-left: 2px solid var(--ok); border-radius: 0 3px 3px 0; background: #edf8f3; font-size: 12px; }
 
 .dialog-backdrop { position: fixed; inset: 0; z-index: 50; align-items: center; justify-content: center; padding: 20px; background: rgba(8, 12, 15, 0.62); backdrop-filter: blur(2px); }
@@ -207,7 +218,7 @@ button { cursor: pointer; font-family: inherit; }
   .timeline-machine p:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .machine-columns { grid-template-columns: minmax(130px, 1.4fr) 0.7fr 0.7fr; }
   .machine-columns > :nth-child(3) { display: none; }
-  .activity-bar { align-items: flex-start; flex-direction: column; gap: 8px; }
+  .activity-head { align-items: flex-start; flex-direction: column; }
   .schedule-summary { grid-template-columns: repeat(2, 1fr); }
 }
 
