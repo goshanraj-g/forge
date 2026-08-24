@@ -247,15 +247,6 @@ Tests cover repository behavior, migrations, transaction boundaries, and safe
 recovery after a failed decision or optimization. This prepares the demo for
 repeatable deployment; it does not turn the simulator into a production
 manufacturing execution system.
-
-## Open decisions
-
-Things to consider during the implementation:
-
-- simulation tick size;
-- optimizer bucket size and time limit;
-- which validated changes can be committed without human approval;
-- whether partial schedules provide enough value to enable by default;
 - whether retrieval of past decisions improves evaluation results;
 - when active simulation state should move from memory to Postgres.
 
