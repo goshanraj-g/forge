@@ -1,6 +1,6 @@
 # Forge
 
-Forge is a factory scheduling demo; it models a production floor, introduces
+Forge is an agentic manufacturing ERP prototype; it models a production floor, introduces
 disruptions such as machine failures and late shipments, and measures whether
 replanning improves delivery performance and cost.
 
