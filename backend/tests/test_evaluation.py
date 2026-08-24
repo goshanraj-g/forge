@@ -321,6 +321,27 @@ def test_events_marked_material_actually_disrupt_committed_work() -> None:
             )
 
 
+def test_every_scenario_order_comes_due_inside_the_horizon() -> None:
+    """An order due after the horizon is free to abandon, which rigs the ranking.
+
+    Lateness only accrues once an order is past due, so a policy can dump work
+    whose deadline falls outside the run and pay nothing for it — winning on
+    cost while delivering less. Scenarios have to price everything they load.
+    """
+    for scenario in load_scenarios():
+        state = runner._prepare_state(scenario)
+        overdue = {
+            order.id: order.due_hour
+            for order in state.order_list()
+            if order.due_hour > scenario.horizon_hour
+        }
+
+        assert not overdue, (
+            f"{scenario.id}: horizon is {scenario.horizon_hour}h but {overdue} "
+            f"come due after it, so abandoning them costs the policy nothing"
+        )
+
+
 def test_runs_are_isolated_and_repeatable() -> None:
     scenario = _scenario()
 

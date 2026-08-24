@@ -1,0 +1,39 @@
+{
+  "id": "nuisance-battery-outages",
+  "description": "A battery line drops out four times for two hours each, and every outage is short enough that the committed plan absorbs it: leaving the schedule alone still delivers all three orders on time. Replanning after each one re-sequences work that was already going to finish, which pushes an order past its deadline, strands units the horizon no longer has room for, and buys overtime for capacity nobody needed.",
+  "factory_name": "factory_01",
+  "horizon_hour": 40,
+  "step_hours": 0.25,
+  "order_ids": ["ORD-002", "ORD-004", "ORD-006"],
+  "events": [
+    {
+      "id": "eval-nuisance-001",
+      "sim_hour": 6,
+      "type": "machine_failure",
+      "machine_id": "M3",
+      "duration_hours": 2
+    },
+    {
+      "id": "eval-nuisance-002",
+      "sim_hour": 12,
+      "type": "machine_failure",
+      "machine_id": "M3",
+      "duration_hours": 2
+    },
+    {
+      "id": "eval-nuisance-003",
+      "sim_hour": 18,
+      "type": "machine_failure",
+      "machine_id": "M3",
+      "duration_hours": 2
+    },
+    {
+      "id": "eval-nuisance-004",
+      "sim_hour": 24,
+      "type": "machine_failure",
+      "machine_id": "M3",
+      "duration_hours": 2
+    }
+  ],
+  "oracle_replan_event_ids": []
+}

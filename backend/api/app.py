@@ -361,10 +361,14 @@ def commit_schedule(
         order.id: sum(job.quantity for job in request.jobs if job.order_id == order.id)
         for order in state.open_orders()
     }
+    # A job carries whole units, but production runs in fractional steps, so a
+    # partly built order can leave a fractional remainder. Cover it the way the
+    # validator bounds it -- rounded up -- or an order stuck at 221.5 units
+    # could never be scheduled exactly and would block every later commit.
     incomplete_orders = [
         order.id
         for order in state.open_orders()
-        if abs(scheduled_quantity[order.id] - order.remaining) > 1e-6
+        if scheduled_quantity[order.id] != math.ceil(order.remaining)
     ]
     if incomplete_orders:
         raise HTTPException(

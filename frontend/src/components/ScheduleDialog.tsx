@@ -60,7 +60,7 @@ export function ScheduleDialog({ factoryName, state, onClose, onCommitted }: Sch
             <Grid className="schedule-summary">
               <Summary label="Result" value={result.status.replace('_', ' ')} />
               <Summary label="Planned jobs" value={String(result.jobs.length)} />
-              <Summary label="Scheduling cost" value={`$${totalCost.toLocaleString()}`} />
+              <Summary label="Scheduling cost" value={money(totalCost)} />
               <Summary label="Solve time" value={`${result.solve_seconds.toFixed(2)}s`} />
             </Grid>
 
@@ -99,6 +99,11 @@ export function ScheduleDialog({ factoryName, state, onClose, onCommitted }: Sch
       </Box>
     </Flex>
   )
+}
+
+/** Changeover math yields fractional cents, which read as noise on a summary. */
+function money(value: number) {
+  return `$${value.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
 }
 
 function Summary({ label, value }: { label: string; value: string }) {

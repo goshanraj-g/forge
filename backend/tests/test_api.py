@@ -10,7 +10,7 @@ from backend.evaluation.runner import InitialScheduleUnavailable
 from backend.optimizer.models import ScheduleResult, ScheduleStatus
 from backend.persistence.repository import PersistenceBatch
 from backend.simulator.events import MachineFailureEvent
-from backend.simulator.models import Machine, Order, Product, ProductionJob
+from backend.simulator.models import Machine, Order, Product, ProductionJob, q
 from backend.simulator.state import FactoryState
 
 client = TestClient(app)
@@ -381,6 +381,42 @@ def test_commit_rejects_stale_version() -> None:
     assert response.json()["detail"] == (
         "stale schedule version 0; current version is 1"
     )
+
+
+def test_commit_accepts_a_partly_built_order_with_a_fractional_remainder() -> None:
+    """Changeover and inventory limits leave orders on fractional unit counts.
+
+    A job carries whole units, so an order sitting at 239.5 remaining can only
+    be covered by rounding up. While the solver truncated and commit demanded an
+    exact float match, the two disagreed by half a unit and every commit after
+    the factory had produced anything was rejected.
+    """
+    factory_store.clear()
+    simulator = factory_store.get("factory_01")
+    simulator.state.orders["ORD-001"].produced = q(0.5)
+    assert simulator.state.orders["ORD-001"].remaining == 239.5
+
+    proposed = client.post(
+        "/factories/factory_01/optimize",
+        json={"horizon_hours": 72, "bucket_hours": 1, "time_limit_seconds": 10},
+    )
+    assert proposed.status_code == 200
+    jobs = proposed.json()["jobs"]
+    assert any(job["order_id"] == "ORD-001" for job in jobs)
+    for job in jobs:
+        job["schedule_version"] = 1
+
+    response = client.post(
+        "/factories/factory_01/schedules/commit",
+        json={
+            "expected_version": 0,
+            "jobs": jobs,
+            "hard_deadline_orders": [],
+        },
+    )
+
+    assert response.status_code == 200, response.json()
+    assert response.json()["state"]["schedule_version"] == 1
 
 
 def test_commit_rejects_incomplete_schedule() -> None:

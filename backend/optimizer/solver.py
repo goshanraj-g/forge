@@ -453,7 +453,7 @@ def _read_jobs(
                 end_hour=q(
                     state.sim_hour + end_bucket * options.bucket_hours,
                 ),
-                quantity=int(item.order.remaining),
+                quantity=ceil(item.order.remaining),
                 schedule_version=schedule_version,
             ),
         )

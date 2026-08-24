@@ -2,6 +2,7 @@ import { Box, Grid, Text } from '@chakra-ui/react'
 
 import { PageTitle, PanelHeader, Stat } from '../components/primitives'
 import { ScheduleTimeline } from '../components/ScheduleTimeline'
+import { unitsLeft } from '../lib/orders'
 import { useWorkspace } from '../workspace-context'
 
 export function ScheduleRoute() {
@@ -9,7 +10,10 @@ export function ScheduleRoute() {
 
   const jobs = Object.values(state.jobs)
   const scheduledOrders = new Set(jobs.map((job) => job.order_id))
+  // Committed jobs outlive the orders they belong to, so counting order ids
+  // straight off `jobs` would include completed work and read as 12/7.
   const unscheduled = openOrders.filter((order) => !scheduledOrders.has(order.id))
+  const covered = openOrders.length - unscheduled.length
   const lastEnd = jobs.reduce((latest, job) => Math.max(latest, job.end_hour), 0)
 
   return (
@@ -27,7 +31,7 @@ export function ScheduleRoute() {
         />
         <Stat
           label="Orders in plan"
-          value={`${scheduledOrders.size}/${openOrders.length}`}
+          value={`${covered}/${openOrders.length}`}
           note={unscheduled.length ? `${unscheduled.length} uncovered` : 'All open orders'}
         />
         <Stat
@@ -72,7 +76,7 @@ export function ScheduleRoute() {
                       {order.product_id} · P{order.priority}
                     </Text>
                   </Box>
-                  <Text className="num-cell">{order.quantity - order.produced}</Text>
+                  <Text className="num-cell">{unitsLeft(order)}</Text>
                   <Text className="num-cell">H{order.due_hour}</Text>
                 </Grid>
               ))}

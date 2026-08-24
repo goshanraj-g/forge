@@ -1,10 +1,15 @@
 {
   "id": "idle-line-churn",
-  "description": "A battery line fails four times in a row while part-way through the single order committed to it. Replanning after every failure does rescue the stalled units, but it re-sequences the three orders running elsewhere to do so, and the changeover and lateness it pays for that outweigh the demand it recovers.",
+  "description": "A battery line fails three times in a row while part-way through the single order committed to it, and the stall spreads to the orders queued behind it. Leaving the plan alone strands that demand outright, so this is the case replanning is supposed to win, and every failure here really does take committed work off the line.",
   "factory_name": "factory_01",
   "horizon_hour": 42,
   "step_hours": 0.25,
-  "order_ids": ["ORD-001", "ORD-002", "ORD-003", "ORD-006"],
+  "order_ids": [
+    "ORD-001",
+    "ORD-002",
+    "ORD-003",
+    "ORD-006"
+  ],
   "events": [
     {
       "id": "eval-churn-001",
@@ -26,14 +31,11 @@
       "type": "machine_failure",
       "machine_id": "M4",
       "duration_hours": 4
-    },
-    {
-      "id": "eval-churn-004",
-      "sim_hour": 15,
-      "type": "machine_failure",
-      "machine_id": "M4",
-      "duration_hours": 4
     }
   ],
-  "oracle_replan_event_ids": []
+  "oracle_replan_event_ids": [
+    "eval-churn-001",
+    "eval-churn-002",
+    "eval-churn-003"
+  ]
 }

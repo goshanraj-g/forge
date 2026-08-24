@@ -1,6 +1,7 @@
 import { Box, Flex, Grid, Heading, Text } from '@chakra-ui/react'
 
 import { PageTitle, PanelHeader, Stat, StatusLight } from '../components/primitives'
+import { unitsLeft } from '../lib/orders'
 import { useWorkspace } from '../workspace-context'
 
 const WINDOW_HOURS = 24
@@ -154,7 +155,7 @@ export function OverviewRoute() {
                     {order.product_id} · P{order.priority}
                   </Text>
                 </Box>
-                <Text className="num-cell">{order.quantity - order.produced}</Text>
+                <Text className="num-cell">{unitsLeft(order)}</Text>
                 <Text className="num-cell">H{order.due_hour}</Text>
               </Grid>
             ))}

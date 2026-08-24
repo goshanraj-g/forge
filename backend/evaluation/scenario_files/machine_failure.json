@@ -2,7 +2,7 @@
   "id": "assembly-line-failure",
   "description": "An assembly line fails eight hours into the motor order it is building. The finishing line is tied up with a P5 order that no other machine can produce, so the lost work has to move to the second assembly line instead of falling back to finishing.",
   "factory_name": "factory_01",
-  "horizon_hour": 30,
+  "horizon_hour": 42,
   "step_hours": 0.25,
   "order_ids": ["ORD-001", "ORD-003", "ORD-005", "ORD-006"],
   "events": [
